@@ -1,0 +1,2680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VayuSetu — Flight Reservation</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0a1628;
+    --navy-mid: #112040;
+    --navy-light: #1a3060;
+    --sky: #1e6fd4;
+    --sky-light: #3a8ae8;
+    --sky-pale: #e8f2fc;
+    --gold: #e8a020;
+    --gold-light: #f5c050;
+    --white: #ffffff;
+    --off-white: #f7f9fc;
+    --surface: #ffffff;
+    --surface-2: #f0f4f9;
+    --border: #dde4ef;
+    --border-soft: #edf0f7;
+    --text-primary: #0a1628;
+    --text-secondary: #4a5a78;
+    --text-muted: #8a97b0;
+    --success: #0f9060;
+    --success-bg: #eaf6f0;
+    --danger: #c0392b;
+    --danger-bg: #fdf0ef;
+    --warn: #b07010;
+    --warn-bg: #fef9ed;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-lg: 18px;
+    --shadow: 0 2px 12px rgba(10,22,40,0.08);
+    --shadow-md: 0 4px 24px rgba(10,22,40,0.12);
+    --shadow-lg: 0 8px 40px rgba(10,22,40,0.16);
+    --transition: 0.18s cubic-bezier(0.4,0,0.2,1);
+  }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--off-white);
+    color: var(--text-primary);
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── NAV ── */
+  nav {
+    background: var(--navy);
+    padding: 0 2rem;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .nav-logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--sky), var(--sky-light));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nav-logo svg { width: 20px; height: 20px; fill: white; }
+  .nav-brand-text { color: white; font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+  .nav-brand-text span { color: var(--gold-light); }
+  .nav-links { display: flex; gap: 0; }
+  .nav-link {
+    color: rgba(255,255,255,0.7);
+    text-decoration: none;
+    padding: 0 16px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .nav-link:hover, .nav-link.active {
+    color: white;
+    border-bottom-color: var(--gold-light);
+    background: rgba(255,255,255,0.04);
+  }
+  .nav-actions { display: flex; align-items: center; gap: 10px; }
+  .nav-btn {
+    padding: 8px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    transition: var(--transition);
+  }
+  .nav-btn-ghost {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .nav-btn-ghost:hover { background: rgba(255,255,255,0.18); }
+  .nav-btn-primary {
+    background: var(--sky);
+    color: white;
+  }
+  .nav-btn-primary:hover { background: var(--sky-light); }
+
+  /* ── PAGES ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(160deg, var(--navy) 0%, var(--navy-mid) 50%, #0d2a5c 100%);
+    padding: 60px 2rem 80px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -80px;
+    width: 480px; height: 480px;
+    background: radial-gradient(circle, rgba(30,111,212,0.2) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: 20%;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(232,160,32,0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-inner { max-width: 1100px; margin: 0 auto; position: relative; }
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(30,111,212,0.25);
+    border: 1px solid rgba(30,111,212,0.4);
+    color: #7cb8f5;
+    padding: 5px 14px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: clamp(36px, 5vw, 56px);
+    color: white;
+    line-height: 1.15;
+    margin-bottom: 16px;
+    font-weight: 400;
+  }
+  .hero h1 em {
+    font-style: italic;
+    color: var(--gold-light);
+  }
+  .hero-sub {
+    color: rgba(255,255,255,0.6);
+    font-size: 16px;
+    margin-bottom: 40px;
+    max-width: 500px;
+    font-weight: 300;
+  }
+
+  /* ── SEARCH CARD ── */
+  .search-card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 28px 32px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-soft);
+  }
+  .trip-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--surface-2);
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    width: fit-content;
+    margin-bottom: 24px;
+  }
+  .trip-btn {
+    padding: 7px 18px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: var(--transition);
+  }
+  .trip-btn.active {
+    background: var(--navy);
+    color: white;
+    box-shadow: 0 1px 6px rgba(10,22,40,0.2);
+  }
+  .search-grid {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr 1fr 1fr;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 16px;
+  }
+  .field-group { display: flex; flex-direction: column; gap: 6px; }
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .field-input-wrap { position: relative; }
+  .field-input-wrap .field-icon {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  .field-input-wrap input,
+  .field-input-wrap select {
+    width: 100%;
+    padding: 12px 14px 12px 38px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--surface);
+    outline: none;
+    transition: var(--transition);
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .field-input-wrap input:focus,
+  .field-input-wrap select:focus {
+    border-color: var(--sky);
+    box-shadow: 0 0 0 3px rgba(30,111,212,0.12);
+  }
+  .field-input-wrap input::placeholder { color: var(--text-muted); }
+  .swap-btn {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--sky-pale);
+    border: 1.5px solid var(--sky);
+    color: var(--sky);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    align-self: flex-end;
+    margin-bottom: 1px;
+    transition: var(--transition);
+    flex-shrink: 0;
+  }
+  .swap-btn:hover { background: var(--sky); color: white; }
+  .search-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 32px;
+    background: linear-gradient(135deg, var(--sky), var(--sky-light));
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 16px rgba(30,111,212,0.35);
+    width: 100%;
+    justify-content: center;
+  }
+  .search-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(30,111,212,0.45);
+  }
+  .search-btn:active { transform: translateY(0); }
+
+  /* ── TRUST BAR ── */
+  .trust-bar {
+    background: var(--navy-mid);
+    padding: 16px 2rem;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .trust-inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .trust-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+  }
+  .trust-item svg { flex-shrink: 0; opacity: 0.8; }
+
+  /* ── MAIN LAYOUT ── */
+  .main-content {
+    max-width: 1100px;
+    margin: 40px auto;
+    padding: 0 2rem;
+  }
+
+  /* ── SECTION HEADINGS ── */
+  .section-hd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  .section-sub {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* ── FLIGHT CARDS ── */
+  .flights-list { display: flex; flex-direction: column; gap: 14px; }
+  .flight-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    align-items: center;
+    gap: 24px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: var(--shadow);
+  }
+  .flight-card:hover {
+    border-color: var(--sky);
+    box-shadow: 0 4px 20px rgba(30,111,212,0.12);
+    transform: translateY(-1px);
+  }
+  .airline-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 80px;
+  }
+  .airline-logo {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: -0.5px;
+  }
+  .logo-indigo { background: #1e3460; color: white; }
+  .logo-airindia { background: #8b1a1a; color: white; }
+  .airline-name { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .flight-route {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .route-point { text-align: center; }
+  .route-time { font-size: 22px; font-weight: 600; color: var(--text-primary); line-height: 1; }
+  .route-iata { font-size: 12px; color: var(--text-muted); font-weight: 500; margin-top: 4px; }
+  .route-line {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+  .route-duration { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+  .route-dashes {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    position: relative;
+  }
+  .route-dashes::before {
+    content: '';
+    position: absolute;
+    left: 12px; right: 12px;
+    height: 1px;
+    background: var(--border);
+  }
+  .plane-icon {
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    color: var(--sky);
+    background: white;
+    padding: 0 4px;
+    font-size: 16px;
+  }
+  .route-stops { font-size: 11px; color: var(--text-muted); }
+  .flight-meta { text-align: right; }
+  .flight-class {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .flight-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--success-bg);
+    color: var(--success);
+  }
+  .flight-price-col { text-align: right; min-width: 120px; }
+  .price-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .price-amount { font-size: 24px; font-weight: 700; color: var(--text-primary); line-height: 1.2; }
+  .price-amount span { font-size: 14px; font-weight: 500; color: var(--text-secondary); }
+  .price-gst { font-size: 11px; color: var(--text-muted); }
+  .book-now-btn {
+    margin-top: 8px;
+    padding: 9px 20px;
+    background: var(--sky);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    width: 100%;
+  }
+  .book-now-btn:hover { background: var(--sky-light); }
+
+  /* ── FILTERS SIDEBAR ── */
+  .results-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .filters-panel {
+    background: var(--surface);
+    border: 1.5px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 80px;
+  }
+  .filter-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; }
+  .filter-section { margin-bottom: 20px; }
+  .filter-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .filter-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    cursor: pointer;
+  }
+  .filter-option input[type=checkbox] {
+    width: 16px; height: 16px;
+    accent-color: var(--sky);
+    cursor: pointer;
+  }
+  .filter-option-label { font-size: 13px; color: var(--text-secondary); }
+  .filter-range { width: 100%; accent-color: var(--sky); }
+  .filter-range-vals { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  /* ── BOOKING FORM ── */
+  .booking-wrapper { max-width: 800px; margin: 0 auto; }
+  .booking-header {
+    background: var(--navy);
+    border-radius: var(--radius) var(--radius) 0 0;
+    padding: 24px 28px;
+    color: white;
+  }
+  .booking-header h2 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .booking-header p { font-size: 13px; color: rgba(255,255,255,0.6); }
+  .booking-body {
+    background: var(--surface);
+    border: 1.5px solid var(--border-soft);
+    border-top: none;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 28px;
+    box-shadow: var(--shadow-md);
+  }
+  .booking-steps {
+    display: flex;
+    gap: 0;
+    margin-bottom: 32px;
+    border-bottom: 2px solid var(--border-soft);
+  }
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: var(--transition);
+  }
+  .step-item.active { color: var(--sky); border-bottom-color: var(--sky); }
+  .step-item.done { color: var(--success); }
+  .step-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .step-item.active .step-num { background: var(--sky); color: white; }
+  .step-item.done .step-num { background: var(--success); color: white; }
+
+  /* Form styles */
+  .form-section { margin-bottom: 28px; }
+  .form-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-soft);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .form-row-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+  }
+  .form-input {
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--surface);
+    outline: none;
+    transition: var(--transition);
+    width: 100%;
+  }
+  .form-input:focus {
+    border-color: var(--sky);
+    box-shadow: 0 0 0 3px rgba(30,111,212,0.1);
+  }
+  .form-select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238a97b0' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
+  }
+  .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* Seat selector */
+  .seat-grid-wrap { overflow-x: auto; }
+  .seat-grid {
+    display: inline-grid;
+    grid-template-columns: 28px repeat(6, 32px);
+    gap: 4px;
+    padding: 16px;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    min-width: 300px;
+  }
+  .seat-col-label {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .seat-row-label {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .seat-btn {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    background: white;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .seat-btn:hover:not(.taken):not(.selected) {
+    border-color: var(--sky);
+    background: var(--sky-pale);
+    color: var(--sky);
+  }
+  .seat-btn.taken {
+    background: var(--surface-2);
+    color: var(--text-muted);
+    cursor: not-allowed;
+    border-color: var(--border-soft);
+  }
+  .seat-btn.selected {
+    background: var(--sky);
+    border-color: var(--sky);
+    color: white;
+  }
+  .seat-btn.window { border-color: #b5c8e8; }
+  .seat-btn.aisle { border-color: #b5d4c0; }
+  .seat-legend {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot {
+    width: 14px; height: 14px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border);
+  }
+
+  /* Add-ons */
+  .addons-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .addon-card {
+    border: 1.5px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .addon-card:hover { border-color: var(--sky); background: var(--sky-pale); }
+  .addon-card.selected { border-color: var(--sky); background: var(--sky-pale); }
+  .addon-icon { font-size: 22px; line-height: 1; flex-shrink: 0; }
+  .addon-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .addon-desc { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+  .addon-price { font-size: 13px; font-weight: 600; color: var(--sky); margin-top: 4px; }
+
+  /* Fare summary */
+  .fare-summary {
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    padding: 20px;
+    margin-top: 24px;
+  }
+  .fare-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  .fare-row.total {
+    border-top: 1.5px solid var(--border);
+    padding-top: 12px;
+    margin-top: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .fare-row.discount { color: var(--success); }
+
+  /* Action btns */
+  .action-row {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .btn {
+    padding: 11px 24px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: var(--transition);
+  }
+  .btn-outline {
+    background: transparent;
+    border: 1.5px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .btn-outline:hover { border-color: var(--sky); color: var(--sky); }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--sky), var(--sky-light));
+    color: white;
+    box-shadow: 0 3px 12px rgba(30,111,212,0.3);
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 18px rgba(30,111,212,0.4);
+  }
+  .btn-success {
+    background: var(--success);
+    color: white;
+    box-shadow: 0 3px 12px rgba(15,144,96,0.3);
+  }
+
+  /* ── CONFIRMATION ── */
+  .confirm-card {
+    max-width: 640px;
+    margin: 0 auto;
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    border: 1.5px solid var(--border-soft);
+  }
+  .confirm-header {
+    background: linear-gradient(135deg, var(--success), #0a7a52);
+    padding: 32px;
+    text-align: center;
+    color: white;
+  }
+  .confirm-icon {
+    width: 64px; height: 64px;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    margin: 0 auto 16px;
+  }
+  .confirm-title { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+  .confirm-pnr {
+    display: inline-block;
+    background: rgba(255,255,255,0.2);
+    padding: 6px 20px;
+    border-radius: 100px;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    margin-top: 12px;
+  }
+  .confirm-body { padding: 28px 32px; }
+  .confirm-flight {
+    background: var(--navy);
+    border-radius: var(--radius-sm);
+    padding: 20px 24px;
+    color: white;
+    margin-bottom: 20px;
+  }
+  .confirm-route {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .confirm-city { font-size: 26px; font-weight: 700; }
+  .confirm-iata { font-size: 13px; color: rgba(255,255,255,0.5); }
+  .confirm-arrow { color: var(--gold-light); font-size: 20px; }
+  .confirm-meta { margin-top: 16px; display: flex; gap: 20px; flex-wrap: wrap; }
+  .confirm-meta-item { font-size: 13px; color: rgba(255,255,255,0.6); }
+  .confirm-meta-item strong { color: white; display: block; font-size: 14px; }
+  .confirm-passengers { margin-bottom: 20px; }
+  .passenger-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-soft);
+    font-size: 14px;
+  }
+  .passenger-item:last-child { border-bottom: none; }
+  .pass-seat {
+    background: var(--sky-pale);
+    color: var(--sky);
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .confirm-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--surface-2);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .confirm-total-amt { color: var(--sky); font-size: 22px; }
+  .confirm-actions { display: flex; gap: 12px; margin-top: 20px; }
+  .confirm-actions .btn { flex: 1; text-align: center; justify-content: center; }
+
+  /* ── MY BOOKINGS ── */
+  .booking-item {
+    background: var(--surface);
+    border: 1.5px solid var(--border-soft);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+  }
+  .booking-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .booking-pnr {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 1px;
+  }
+  .status-badge {
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .status-confirmed { background: var(--success-bg); color: var(--success); }
+  .status-cancelled { background: var(--danger-bg); color: var(--danger); }
+  .status-waitlisted { background: var(--warn-bg); color: var(--warn); }
+  .booking-route {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .booking-details-row {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .booking-detail-item strong { color: var(--text-primary); display: block; }
+  .cancel-btn {
+    padding: 7px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--danger);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+  .cancel-btn:hover { background: var(--danger-bg); border-color: var(--danger); }
+
+  /* ── PNR LOOKUP ── */
+  .pnr-card {
+    max-width: 520px;
+    margin: 0 auto;
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 40px;
+    box-shadow: var(--shadow-md);
+    border: 1.5px solid var(--border-soft);
+    text-align: center;
+  }
+  .pnr-icon { font-size: 48px; margin-bottom: 16px; }
+  .pnr-card h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .pnr-card p { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+  .pnr-input-wrap {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .pnr-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    outline: none;
+    color: var(--text-primary);
+    text-align: center;
+  }
+  .pnr-input:focus { border-color: var(--sky); box-shadow: 0 0 0 3px rgba(30,111,212,0.1); }
+
+  /* ── AUTH MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,22,40,0.6);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 40px;
+    width: 440px;
+    max-width: calc(100vw - 32px);
+    box-shadow: var(--shadow-lg);
+    border: 1.5px solid var(--border-soft);
+    position: relative;
+    animation: slideUp 0.25s cubic-bezier(0.4,0,0.2,1);
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: var(--text-muted);
+    transition: var(--transition);
+  }
+  .modal-close:hover { background: var(--border); color: var(--text-primary); }
+  .modal-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .modal-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 28px; }
+  .modal-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border-soft); margin-bottom: 24px; }
+  .modal-tab {
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    font-family: inherit;
+    transition: var(--transition);
+  }
+  .modal-tab.active { color: var(--sky); border-bottom-color: var(--sky); }
+  .modal-form { display: flex; flex-direction: column; gap: 14px; }
+  .modal-form .form-input { width: 100%; }
+  .modal-form-full .btn { width: 100%; margin-top: 4px; justify-content: center; }
+  .modal-footer { text-align: center; margin-top: 16px; font-size: 13px; color: var(--text-muted); }
+
+  /* ── ALERTS ── */
+  .alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 20px;
+  }
+  .alert-success { background: var(--success-bg); color: var(--success); border: 1px solid rgba(15,144,96,0.2); }
+  .alert-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid rgba(192,57,43,0.2); }
+  .alert-info { background: var(--sky-pale); color: var(--sky); border: 1px solid rgba(30,111,212,0.2); }
+
+  /* ── EMPTY / LOADING ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+  }
+  .empty-state-icon { font-size: 52px; margin-bottom: 16px; }
+  .empty-state h3 { font-size: 18px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .search-grid { grid-template-columns: 1fr 1fr; }
+    .results-layout { grid-template-columns: 1fr; }
+    .filters-panel { position: static; }
+    .flight-card { grid-template-columns: 1fr; gap: 12px; }
+  }
+  @media (max-width: 600px) {
+    .hero { padding: 40px 1rem 60px; }
+    .search-card { padding: 20px 16px; }
+    .main-content { padding: 0 1rem; }
+    .booking-body { padding: 20px 16px; }
+    .form-row, .form-row-3, .addons-grid { grid-template-columns: 1fr; }
+    nav { padding: 0 1rem; }
+    .nav-links { display: none; }
+  }
+
+  /* ── UTILITIES ── */
+  .hidden { display: none !important; }
+  .text-sky { color: var(--sky); }
+  .text-gold { color: var(--gold); }
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .tag-economy { background: #e8f4e8; color: #2d7a2d; }
+  .tag-business { background: #fef3e2; color: #8a5c00; }
+
+  .divider { height: 1px; background: var(--border-soft); margin: 24px 0; }
+
+  /* No-icon approach for airline logos */
+  .indigo-color { color: #1e3460; }
+  .airindia-color { color: #8b1a1a; }
+
+  /* Passenger counter */
+  .pax-counter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+  }
+  .pax-type { flex: 1; }
+  .pax-type-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+  .pax-type-age { font-size: 11px; color: var(--text-muted); }
+  .pax-ctrl { display: flex; align-items: center; gap: 10px; }
+  .pax-btn {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text-secondary);
+    transition: var(--transition);
+  }
+  .pax-btn:hover { border-color: var(--sky); color: var(--sky); background: var(--sky-pale); }
+  .pax-count { font-size: 16px; font-weight: 700; min-width: 20px; text-align: center; }
+
+  .flight-number-tag {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-align: center;
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <a class="nav-brand" href="#" onclick="showPage('home')">
+    <div class="nav-logo">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+      </svg>
+    </div>
+    <span class="nav-brand-text">Vayu<span>Setu</span></span>
+  </a>
+  <div class="nav-links">
+    <span class="nav-link active" onclick="showPage('home');setActive(this)">Home</span>
+    <span class="nav-link" onclick="showPage('search-results');setActive(this)">Flights</span>
+    <span class="nav-link" onclick="showPage('my-bookings');setActive(this)">My Bookings</span>
+    <span class="nav-link" onclick="showPage('pnr-status');setActive(this)">PNR Status</span>
+  </div>
+  <div class="nav-actions" id="nav-actions">
+    <button class="nav-btn nav-btn-ghost" onclick="openModal('login')">Login</button>
+    <button class="nav-btn nav-btn-primary" onclick="openModal('register')">Register</button>
+  </div>
+</nav>
+
+<!-- ── HOME PAGE ── -->
+<div id="page-home" class="page active">
+  <div class="hero">
+    <div class="hero-inner">
+      <h1>Because someone’s waiting for that “I’ve reached.”</h1>
+      <p class="hero-sub">Book VayuSetu flights instantly. Best fares, zero hidden charges.</p>
+      <div class="search-card">
+        <div class="trip-toggle">
+          <button class="trip-btn active" onclick="setTripType(this,'one-way')">One Way</button>
+          <button class="trip-btn" onclick="setTripType(this,'round-trip')">Round Trip</button>
+        </div>
+        <div class="search-grid">
+          <div class="field-group">
+            <div class="field-label">From</div>
+            <div class="field-input-wrap">
+              <span class="field-icon">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/><path d="M2 12h20"/></svg>
+              </span>
+              <select class="form-input form-select" id="origin" style="padding-left:38px">
+                <option value="">Select Origin</option>
+                <option value="DEL">Delhi (DEL)</option>
+                <option value="BOM">Mumbai (BOM)</option>
+                <option value="BLR">Bengaluru (BLR)</option>
+                <option value="HYD">Hyderabad (HYD)</option>
+                <option value="MAA">Chennai (MAA)</option>
+                <option value="CCU">Kolkata (CCU)</option>
+                <option value="AMD">Ahmedabad (AMD)</option>
+                <option value="JAI">Jaipur (JAI)</option>
+              </select>
+            </div>
+          </div>
+          <button class="swap-btn" onclick="swapCities()" title="Swap cities">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
+          </button>
+          <div class="field-group">
+            <div class="field-label">To</div>
+            <div class="field-input-wrap">
+              <span class="field-icon">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/><path d="M2 12h20"/></svg>
+              </span>
+              <select class="form-input form-select" id="destination" style="padding-left:38px">
+                <option value="">Select Destination</option>
+                <option value="DEL">Delhi (DEL)</option>
+                <option value="BOM">Mumbai (BOM)</option>
+                <option value="BLR">Bengaluru (BLR)</option>
+                <option value="HYD">Hyderabad (HYD)</option>
+                <option value="MAA">Chennai (MAA)</option>
+                <option value="CCU">Kolkata (CCU)</option>
+                <option value="AMD">Ahmedabad (AMD)</option>
+                <option value="JAI">Jaipur (JAI)</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Date</div>
+            <div class="field-input-wrap">
+              <span class="field-icon">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </span>
+              <input type="date" class="form-input" id="travel-date" style="padding-left:38px"/>
+            </div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Passengers</div>
+            <div style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 14px">
+              <button type="button" onclick="changePax(-1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface-2);font-size:18px;cursor:pointer;line-height:1;color:var(--text-primary)">&#8722;</button>
+              <span id="pax-count-display" style="font-size:15px;font-weight:600;min-width:20px;text-align:center">1</span>
+              <button type="button" onclick="changePax(1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);background:var(--surface-2);font-size:18px;cursor:pointer;line-height:1;color:var(--text-primary)">+</button>
+              <span style="font-size:13px;color:var(--text-muted)">Adult(s)</span>
+              <input type="hidden" id="pax-count" value="1"/>
+            </div>
+          </div>
+          <div class="field-group">
+            <div class="field-label">Class</div>
+            <div style="display:flex;gap:8px">
+              <button type="button" id="class-economy-btn" onclick="selectClass('economy')" style="flex:1;padding:10px;border-radius:var(--radius-sm);border:2px solid var(--sky);background:var(--sky);color:white;font-size:13px;font-weight:600;cursor:pointer">&#9992; Economy</button>
+              <button type="button" id="class-business-btn" onclick="selectClass('business')" style="flex:1;padding:10px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--surface);color:var(--text-primary);font-size:13px;font-weight:600;cursor:pointer">&#11088; Business</button>
+              <input type="hidden" id="selected-class" value="economy"/>
+            </div>
+          </div>
+        </div>
+        <button class="search-btn" onclick="doSearch()">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search Flights
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="trust-bar">
+    <div class="trust-inner">
+      <div class="trust-item">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Secure Booking
+      </div>
+      <div class="trust-item">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        Instant Confirmation
+      </div>
+      <div class="trust-item">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        24/7 Support
+      </div>
+      <div class="trust-item">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        Zero Hidden Fees
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="section-hd">
+      <div>
+        <div class="section-title">Popular Routes</div>
+        <div class="section-sub">Top routes across India</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:40px">
+      <div class="flight-card" style="grid-template-columns:1fr;gap:8px;padding:16px 18px" onclick="quickSearch('DEL','BOM')">
+        <div style="font-size:16px;font-weight:700">Delhi → Mumbai</div>
+        <div style="font-size:13px;color:var(--text-muted)">6E101 · IndiGo</div>
+        <div style="font-size:15px;color:var(--sky);font-weight:600;margin-top:4px">From ₹3,500</div>
+      </div>
+      <div class="flight-card" style="grid-template-columns:1fr;gap:8px;padding:16px 18px" onclick="quickSearch('BOM','BLR')">
+        <div style="font-size:16px;font-weight:700">Mumbai → Bengaluru</div>
+        <div style="font-size:13px;color:var(--text-muted)">6E601 · IndiGo</div>
+        <div style="font-size:15px;color:var(--sky);font-weight:600;margin-top:4px">From ₹3,000</div>
+      </div>
+      <div class="flight-card" style="grid-template-columns:1fr;gap:8px;padding:16px 18px" onclick="quickSearch('JAI','CCU')">
+        <div style="font-size:16px;font-weight:700">Jaipur → Kolkata</div>
+        <div style="font-size:13px;color:var(--text-muted)">6E421 · IndiGo</div>
+        <div style="font-size:15px;color:var(--sky);font-weight:600;margin-top:4px">From ₹3,000</div>
+      </div>
+      <div class="flight-card" style="grid-template-columns:1fr;gap:8px;padding:16px 18px" onclick="quickSearch('DEL','BOM')">
+        <div style="font-size:16px;font-weight:700">Delhi → Mumbai</div>
+        <div style="font-size:13px;color:var(--text-muted)">AI201 · Air India</div>
+        <div style="font-size:15px;color:var(--sky);font-weight:600;margin-top:4px">From ₹4,500</div>
+      </div>
+      <div class="flight-card" style="grid-template-columns:1fr;gap:8px;padding:16px 18px" onclick="quickSearch('HYD','DEL')">
+        <div style="font-size:16px;font-weight:700">Hyderabad → Delhi</div>
+        <div style="font-size:13px;color:var(--text-muted)">6E501 · IndiGo</div>
+        <div style="font-size:15px;color:var(--sky);font-weight:600;margin-top:4px">From ₹4,410</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SEARCH RESULTS PAGE ── -->
+<div id="page-search-results" class="page">
+  <div style="background:var(--navy);padding:20px 2rem">
+    <div style="max-width:1100px;margin:0 auto">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="color:white;font-size:18px;font-weight:700" id="results-route-label">Delhi → Mumbai</span>
+        <span style="color:rgba(255,255,255,0.5);font-size:14px" id="results-date-label"></span>
+        <span style="color:rgba(255,255,255,0.5);font-size:14px" id="results-pax-label">1 Passenger · Economy</span>
+        <button onclick="showPage('home')" style="margin-left:auto;padding:7px 16px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:white;border-radius:6px;font-family:inherit;font-size:13px;cursor:pointer;font-weight:500">Modify Search</button>
+      </div>
+    </div>
+  </div>
+  <div class="main-content">
+    <div class="results-layout">
+      <div class="filters-panel">
+        <div class="filter-title">Filter Results</div>
+        <div class="filter-section">
+          <div class="filter-section-title">Airlines</div>
+          <label class="filter-option"><input type="checkbox" checked onchange="applyFilters()"> <span class="filter-option-label">IndiGo (6E)</span></label>
+          <label class="filter-option"><input type="checkbox" checked onchange="applyFilters()"> <span class="filter-option-label">Air India (AI)</span></label>
+        </div>
+        <div class="filter-section">
+          <div class="filter-section-title">Class</div>
+          <label class="filter-option"><input type="checkbox" checked onchange="applyFilters()"> <span class="filter-option-label">Economy</span></label>
+          <label class="filter-option"><input type="checkbox" checked onchange="applyFilters()"> <span class="filter-option-label">Business</span></label>
+        </div>
+        <div class="filter-section">
+          <div class="filter-section-title">Max Fare</div>
+          <input type="range" class="filter-range" min="1000" max="15000" value="15000" id="fare-range" oninput="updateFareRange(this.value)"/>
+          <div class="filter-range-vals"><span>₹1,000</span><span id="fare-range-val">₹15,000</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="section-hd" style="margin-bottom:16px">
+          <div>
+            <div class="section-title" id="results-count-label">8 Flights Found</div>
+            <div class="section-sub">Showing available flights</div>
+          </div>
+          <select class="form-input" style="width:auto;padding:8px 32px 8px 12px" onchange="sortFlights(this.value)">
+            <option value="price">Sort: Price ↑</option>
+            <option value="duration">Duration</option>
+            <option value="departure">Departure</option>
+          </select>
+        </div>
+        <div class="flights-list" id="flights-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BOOKING PAGE ── -->
+<div id="page-booking" class="page">
+  <div class="main-content">
+    <div class="booking-wrapper">
+      <div class="booking-header">
+        <h2 id="booking-flight-title">IndiGo 6E101 · Delhi → Mumbai</h2>
+        <p id="booking-flight-subtitle">Economy Class · 2 hrs 10 mins · Scheduled</p>
+      </div>
+      <div class="booking-body">
+        <div class="booking-steps">
+          <div class="step-item active" id="step-1-tab">
+            <div class="step-num">1</div> Passengers
+          </div>
+          <div class="step-item" id="step-2-tab">
+            <div class="step-num">2</div> Seats
+          </div>
+          <div class="step-item" id="step-3-tab">
+            <div class="step-num">3</div> Add-ons
+          </div>
+          <div class="step-item" id="step-4-tab">
+            <div class="step-num">4</div> Review & Pay
+          </div>
+        </div>
+
+        <!-- Step 1: Passengers -->
+        <div id="booking-step-1">
+          <div id="passengers-container"></div>
+          <!-- hidden fields needed by fare calc & booking API -->
+          <input type="hidden" id="contact-name"/>
+          <input type="hidden" id="contact-email"/>
+          <input type="hidden" id="contact-phone"/>
+          <!-- age derived from DOB by DB; hidden compat fields -->
+          <input type="hidden" id="pax-age" value="25"/>
+          <input type="hidden" id="id-type" value="Aadhaar"/>
+          <input type="hidden" id="pax-category" value="1"/>
+          <input type="hidden" id="pax-type" value="ADULT"/>
+          <div class="action-row">
+            <button class="btn btn-outline" onclick="showPage('search-results')">Back</button>
+            <button class="btn btn-primary" onclick="validateAndGoStep2()">Continue to Seat Selection &#8594;</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Seats -->
+        <div id="booking-step-2" class="hidden">
+          <div class="form-section">
+            <div class="form-section-title">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.23z"/></svg>
+              Select Your Seat
+            </div>
+            <div style="background:var(--navy);color:white;border-radius:var(--radius-sm);padding:10px 16px;text-align:center;font-size:13px;margin-bottom:16px;letter-spacing:1px">✈ FRONT OF AIRCRAFT</div>
+            <div class="seat-grid-wrap">
+              <div class="seat-grid" id="seat-grid"></div>
+            </div>
+            <div class="seat-legend">
+              <div class="legend-item"><div class="legend-dot" style="background:white;border-color:var(--border)"></div> Available</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#b5c8e8;border-color:#b5c8e8"></div> Window (+₹300)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#b5d4c0;border-color:#b5d4c0"></div> Aisle (+₹200)</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--sky);border-color:var(--sky)"></div> Selected</div>
+              <div class="legend-item"><div class="legend-dot" style="background:var(--surface-2)"></div> Taken</div>
+            </div>
+            <div id="seat-selected-info" style="margin-top:12px;font-size:13px;color:var(--text-secondary)">No seat selected yet. Please choose a seat above.</div>
+          </div>
+          <div class="action-row">
+            <button class="btn btn-outline" onclick="goToStep(1)">Back</button>
+            <button class="btn btn-primary" onclick="goToStep(3)">Continue to Add-ons →</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Add-ons -->
+        <div id="booking-step-3" class="hidden">
+          <div class="form-section">
+            <div class="form-section-title">
+              <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+              Enhance Your Journey
+            </div>
+            <div class="addons-grid">
+              <div class="addon-card" id="addon-baggage" onclick="toggleAddon('baggage',500)">
+                <div class="addon-icon">🧳</div>
+                <div>
+                  <div class="addon-name">Extra Baggage</div>
+                  <div class="addon-desc">Add 5 kg extra checked baggage</div>
+                  <div class="addon-price">+₹500</div>
+                </div>
+              </div>
+              <div class="addon-card" id="addon-meal" onclick="toggleAddon('meal',350)">
+                <div class="addon-icon">🍽️</div>
+                <div>
+                  <div class="addon-name">Pre-Order Meal</div>
+                  <div class="addon-desc">Veg / Non-veg meal selection</div>
+                  <div class="addon-price">+₹350</div>
+                </div>
+              </div>
+              <div class="addon-card" id="addon-insurance" onclick="toggleAddon('insurance',299)">
+                <div class="addon-icon">🛡️</div>
+                <div>
+                  <div class="addon-name">Travel Insurance</div>
+                  <div class="addon-desc">Coverage up to ₹5 lakh</div>
+                  <div class="addon-price">+₹299</div>
+                </div>
+              </div>
+              <div class="addon-card" id="addon-priority" onclick="toggleAddon('priority',200)">
+                <div class="addon-icon">⚡</div>
+                <div>
+                  <div class="addon-name">Priority Check-in</div>
+                  <div class="addon-desc">Skip queues at the airport</div>
+                  <div class="addon-price">+₹200</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="action-row">
+            <button class="btn btn-outline" onclick="goToStep(2)">Back</button>
+            <button class="btn btn-primary" onclick="goToStep(4)">Review Booking →</button>
+          </div>
+        </div>
+
+        <!-- Step 4: Review & Pay -->
+        <div id="booking-step-4" class="hidden">
+          <div class="form-section">
+            <div class="form-section-title">Booking Summary</div>
+            <div id="review-flight-info" style="background:var(--surface-2);border-radius:var(--radius-sm);padding:16px 20px;margin-bottom:16px">
+            </div>
+            <div id="review-passenger-info" style="margin-bottom:4px"></div>
+          </div>
+          <div class="fare-summary">
+            <div style="font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text-primary)">Fare Breakdown</div>
+            <div id="fare-per-pax" style="border-bottom:1px solid var(--border);margin-bottom:8px;padding-bottom:8px"></div>
+            <div class="fare-row"><span>Base Fare (after discounts)</span><span id="fare-base">₹0</span></div>
+            <div class="fare-row discount" id="fare-discount-row"><span>Category Discount</span><span id="fare-discount">-₹0</span></div>
+            <div class="fare-row" id="fare-seat-row"><span>Seat Surcharge</span><span id="fare-seat">₹0</span></div>
+            <div class="fare-row" id="fare-addons-row"><span>Add-ons</span><span id="fare-addons">₹0</span></div>
+            <div class="fare-row"><span>GST (5%)</span><span id="fare-gst">₹0</span></div>
+            <div class="fare-row total"><span>Total Amount</span><span id="fare-total" class="text-sky">₹0</span></div>
+          </div>
+          <div class="form-section" style="margin-top:24px">
+            <div class="form-section-title">Payment Method</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:500">
+                <input type="radio" name="payment" value="upi" checked style="accent-color:var(--sky)"> UPI
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:500">
+                <input type="radio" name="payment" value="card" style="accent-color:var(--sky)"> Credit/Debit Card
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:500">
+                <input type="radio" name="payment" value="netbanking" style="accent-color:var(--sky)"> Net Banking
+              </label>
+            </div>
+          </div>
+          <div id="booking-error" class="alert alert-danger hidden"></div>
+          <div class="action-row">
+            <button class="btn btn-outline" onclick="goToStep(3)">Back</button>
+            <button class="btn btn-success" onclick="confirmBooking()" id="pay-btn">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-right:6px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Confirm & Pay ₹<span id="pay-total">0</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONFIRMATION PAGE ── -->
+<div id="page-confirmation" class="page">
+  <div class="main-content">
+    <div class="confirm-card">
+      <div class="confirm-header">
+        <div class="confirm-icon">✓</div>
+        <div class="confirm-title">Booking Confirmed!</div>
+        <div style="font-size:14px;opacity:0.8;margin-top:4px">Your PNR Number</div>
+        <div class="confirm-pnr" id="confirm-pnr">AB12CD</div>
+      </div>
+      <div class="confirm-body">
+        <div class="confirm-flight">
+          <div style="font-size:12px;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px" id="confirm-airline-fn"></div>
+          <div class="confirm-route">
+            <div>
+              <div class="confirm-city" id="confirm-from-city"></div>
+              <div class="confirm-iata" id="confirm-from-iata"></div>
+            </div>
+            <div class="confirm-arrow">✈</div>
+            <div style="text-align:right">
+              <div class="confirm-city" id="confirm-to-city"></div>
+              <div class="confirm-iata" id="confirm-to-iata"></div>
+            </div>
+          </div>
+          <div class="confirm-meta">
+            <div class="confirm-meta-item"><strong id="confirm-dep-time"></strong>Departure</div>
+            <div class="confirm-meta-item"><strong id="confirm-arr-time"></strong>Arrival</div>
+            <div class="confirm-meta-item"><strong id="confirm-class"></strong>Class</div>
+            <div class="confirm-meta-item"><strong id="confirm-status">Scheduled</strong>Status</div>
+          </div>
+        </div>
+        <div class="confirm-passengers">
+          <div style="font-size:13px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px">Passenger Details</div>
+          <div class="passenger-item">
+            <div>
+              <div style="font-weight:600;font-size:14px" id="confirm-pax-name"></div>
+              <div style="font-size:12px;color:var(--text-muted)" id="confirm-pax-category"></div>
+            </div>
+            <div class="pass-seat" id="confirm-seat-num">--</div>
+          </div>
+        </div>
+        <div class="confirm-total">
+          <div>
+            <div style="font-size:13px;color:var(--text-muted)">Total Paid (All Passengers)</div>
+            <div style="font-size:12px;color:var(--text-muted)">Inclusive of GST</div>
+          </div>
+          <div class="confirm-total-amt" id="confirm-total-amt">₹0</div>
+        </div>
+        <div class="confirm-actions" style="margin-top:20px">
+          <button class="btn btn-outline" onclick="showPage('my-bookings')">View My Bookings</button>
+          <button class="btn btn-primary" onclick="showPage('home')">Book Another Flight</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MY BOOKINGS ── -->
+<div id="page-my-bookings" class="page">
+  <div class="main-content">
+    <div class="section-hd">
+      <div>
+        <div class="section-title">My Bookings</div>
+        <div class="section-sub">All your flight reservations</div>
+      </div>
+    </div>
+    <div id="my-bookings-list"></div>
+  </div>
+</div>
+
+<!-- ── PNR STATUS ── -->
+<div id="page-pnr-status" class="page">
+  <div class="main-content">
+    <div class="pnr-card">
+      <div class="pnr-icon">🔍</div>
+      <h2>PNR Status</h2>
+      <p>Enter your 6-character PNR number to get the latest booking status and details.</p>
+      <div class="pnr-input-wrap">
+        <input class="pnr-input" type="text" maxlength="6" placeholder="e.g. AB12CD" id="pnr-input" oninput="this.value=this.value.toUpperCase()"/>
+        <button class="btn btn-primary" onclick="lookupPnr()" style="white-space:nowrap">Check Status</button>
+      </div>
+      <div id="pnr-result"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── AUTH MODAL ── -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="width:48px;height:48px;background:linear-gradient(135deg,var(--sky),var(--sky-light));border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
+        <svg width="24" height="24" fill="white" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+      </div>
+      <div class="modal-title" id="modal-title">Welcome Back</div>
+      <div class="modal-sub" id="modal-sub">Sign in to access your bookings</div>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-login" onclick="switchTab('login')">Login</button>
+      <button class="modal-tab" id="tab-register" onclick="switchTab('register')">Register</button>
+    </div>
+    <!-- Login Form -->
+    <div id="login-form">
+      <div id="login-alert"></div>
+      <div class="modal-form modal-form-full" style="display:flex;flex-direction:column;gap:14px">
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input class="form-input" type="email" placeholder="rahul@example.com" id="login-email"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" type="password" placeholder="••••••••" id="login-password"/>
+        </div>
+        <button class="btn btn-primary" onclick="doLogin()" style="width:100%;margin-top:4px">Sign In</button>
+      </div>
+    </div>
+    <!-- Register Form -->
+    <div id="register-form" class="hidden">
+      <div class="modal-form" style="display:flex;flex-direction:column;gap:12px">
+        <div class="form-row" style="gap:12px;margin-bottom:0">
+          <div class="form-group">
+            <label class="form-label">Full Name</label>
+            <input class="form-input" type="text" placeholder="Rahul Sharma" id="reg-name"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phone</label>
+            <input class="form-input" type="tel" placeholder="9876543210" id="reg-phone"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input class="form-input" type="email" placeholder="rahul@example.com" id="reg-email"/>
+        </div>
+        <div class="form-row" style="gap:12px;margin-bottom:0">
+          <div class="form-group">
+            <label class="form-label">Password</label>
+            <input class="form-input" type="password" placeholder="Min. 8 characters" id="reg-password"/>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date of Birth</label>
+            <input class="form-input" type="date" id="reg-dob"/>
+          </div>
+        </div>
+        <div class="form-row" style="gap:12px;margin-bottom:0">
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            <select class="form-input form-select" id="reg-gender">
+              <option value="M">Male</option>
+              <option value="F">Female</option>
+              <option value="O">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-input form-select" id="reg-category">
+              <option value="1">General</option>
+              <option value="2">Student</option>
+              <option value="3">Senior Citizen</option>
+              <option value="4">Armed Forces</option>
+              <option value="5">Disabled</option>
+            </select>
+          </div>
+        </div>
+        <div id="reg-alert"></div>
+        <button class="btn btn-primary" onclick="doRegister()" style="width:100%;margin-top:4px">Create Account</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── API CONFIG ───
+// Change this if your backend runs on a different port
+const API_BASE = 'https://favorable-context-unboxed.ngrok-free.dev';
+
+// ─── API HELPER ───
+async function api(path, options = {}) {
+  const token = localStorage.getItem('vs_token');
+  const headers = { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const res = await fetch(API_BASE + path, { ...options, headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'Request failed');
+  return data;
+}
+
+// ─── STATIC LOOKUP TABLES (kept for rendering; also refreshed from API on init) ───
+let AIRPORTS = {
+  DEL: {name:'Indira Gandhi International', city:'New Delhi', state:'Delhi'},
+  BOM: {name:'Chhatrapati Shivaji Maharaj International', city:'Mumbai', state:'Maharashtra'},
+  BLR: {name:'Kempegowda International', city:'Bengaluru', state:'Karnataka'},
+  HYD: {name:'Rajiv Gandhi International', city:'Hyderabad', state:'Telangana'},
+  MAA: {name:'Chennai International', city:'Chennai', state:'Tamil Nadu'},
+  CCU: {name:'Netaji Subhas Chandra Bose International', city:'Kolkata', state:'West Bengal'},
+  AMD: {name:'Sardar Vallabhbhai Patel International', city:'Ahmedabad', state:'Gujarat'},
+  JAI: {name:'Jaipur International', city:'Jaipur', state:'Rajasthan'},
+  PNQ: {name:'Pune Airport', city:'Pune', state:'Maharashtra'},
+  GAU: {name:'Lokpriya Gopinath Bordoloi International', city:'Guwahati', state:'Assam'}
+};
+
+let FARE_CLASSES = {
+  1: {name:'Economy', multiplier:1.00, baggage:15},
+  2: {name:'Business', multiplier:2.50, baggage:25}
+};
+
+const SEAT_TYPES = {
+  W: {name:'Window', surcharge:300},
+  M: {name:'Middle', surcharge:0},
+  A: {name:'Aisle', surcharge:200}
+};
+
+let CATEGORIES = {
+  1:{name:'General',discount:0},
+  2:{name:'Student',discount:10},
+  3:{name:'Senior Citizen',discount:8},
+  4:{name:'Armed Forces',discount:30},
+  5:{name:'Disabled',discount:10}
+};
+
+// ─── STATE ───
+let state = {
+  currentPage: 'home',
+  searchResults: [],       // holds live API flight objects
+  selectedFlight: null,    // one live API flight object
+  selectedSeats: [],       // array of { seat_id, seat_number, seat_type, surcharge }, one per passenger
+  selectedClass: 1,
+  paxCount: 1,
+  seatSurcharge: 0,
+  addons: {},
+  addonTotal: 0,
+  bookings: [],            // cached from API
+  currentUser: null,       // set after login/register
+  nextPnr: 0               // kept for compatibility
+};
+
+// ─── PAGE NAVIGATION ───
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-'+id);
+  if(pg) pg.classList.add('active');
+  state.currentPage = id;
+  if(id === 'my-bookings') renderMyBookings();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ─── INIT: Load reference data from API, restore session ───
+async function initApp() {
+  const token = localStorage.getItem('vs_token');
+  if (token) {
+    try {
+      const data = await api('/users/me');
+      state.currentUser = data.user;
+      updateNavForUser(data.user);
+    } catch(e) {
+      localStorage.removeItem('vs_token');
+      localStorage.removeItem('vs_user');
+    }
+  }
+  try {
+    const data = await api('/flights/airports');
+    if (data.airports) {
+      data.airports.forEach(a => {
+        AIRPORTS[a.iata_code] = { name: a.airport_name, city: a.city, state: a.state };
+      });
+    }
+  } catch(e) {}
+  try {
+    const data = await api('/flights/categories');
+    if (data.categories) {
+      data.categories.forEach(c => {
+        CATEGORIES[c.category_id] = { name: c.category_name, discount: parseFloat(c.discount_pct) };
+      });
+    }
+  } catch(e) {}
+}
+
+function setActive(el) {
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ─── PAX COUNTER & CLASS SELECTOR ───
+function changePax(delta) {
+  let val = parseInt(document.getElementById('pax-count').value) + delta;
+  val = Math.max(1, Math.min(6, val));
+  document.getElementById('pax-count').value = val;
+  document.getElementById('pax-count-display').textContent = val;
+}
+
+function selectClass(cls) {
+  document.getElementById('selected-class').value = cls;
+  const ecBtn = document.getElementById('class-economy-btn');
+  const buBtn = document.getElementById('class-business-btn');
+  if(cls === 'economy') {
+    ecBtn.style.background = 'var(--sky)'; ecBtn.style.borderColor = 'var(--sky)'; ecBtn.style.color = 'white';
+    buBtn.style.background = 'var(--surface)'; buBtn.style.borderColor = 'var(--border)'; buBtn.style.color = 'var(--text-primary)';
+  } else {
+    buBtn.style.background = 'var(--sky)'; buBtn.style.borderColor = 'var(--sky)'; buBtn.style.color = 'white';
+    ecBtn.style.background = 'var(--surface)'; ecBtn.style.borderColor = 'var(--border)'; ecBtn.style.color = 'var(--text-primary)';
+  }
+}
+
+function buildPassengerForms(count) {
+  const container = document.getElementById('passengers-container');
+  if(!container) return;
+  container.innerHTML = '';
+  for(let i = 0; i < count; i++) {
+    container.innerHTML += `
+    <div class="form-section" style="margin-bottom:16px;padding-bottom:20px;border-bottom:1.5px solid var(--border-soft)">
+      <div class="form-section-title" style="display:flex;align-items:center;gap:8px">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Passenger ${i+1}
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full Name *</label>
+          <input class="form-input pax-name" type="text" placeholder="Full name" id="pax-name-${i}" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email Address *</label>
+          <input class="form-input pax-email" type="email" placeholder="email@example.com" id="pax-email-${i}" required/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Phone Number *</label>
+          <input class="form-input pax-phone" type="tel" placeholder="10-digit mobile number" id="pax-phone-${i}" required/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Date of Birth *</label>
+          <input class="form-input pax-dob" type="date" id="pax-dob-${i}" required/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Passenger Category *</label>
+          <select class="form-input form-select" id="pax-category-${i}" onchange="updateFareSummary()">
+            <option value="1">General</option>
+            <option value="2">Student (10% off)</option>
+            <option value="3">Senior Citizen (8% off)</option>
+            <option value="4">Armed Forces (30% off)</option>
+            <option value="5">Disabled (10% off)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Passenger Type *</label>
+          <select class="form-input form-select" id="pax-type-${i}">
+            <option value="ADULT">Adult</option>
+            <option value="CHILD">Child</option>
+            <option value="INFANT">Infant</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ID Proof Type *</label>
+          <select class="form-input form-select" id="pax-idtype-${i}" required>
+            <option value="">-- Select ID Proof --</option>
+            <option value="Aadhaar">Aadhaar Card</option>
+            <option value="Passport">Passport</option>
+            <option value="PAN">PAN Card</option>
+            <option value="Voter ID">Voter ID</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ID Proof Number *</label>
+          <input class="form-input" type="text" placeholder="Enter ID number" id="pax-idnum-${i}" required/>
+        </div>
+      </div>
+    </div>`;
+  }
+}
+
+function validateAndGoStep2() {
+  const count = parseInt(document.getElementById('pax-count').value) || 1;
+  for(let i = 0; i < count; i++) {
+    const name   = (document.getElementById('pax-name-'+i)?.value || '').trim();
+    const email  = (document.getElementById('pax-email-'+i)?.value || '').trim();
+    const phone  = (document.getElementById('pax-phone-'+i)?.value || '').trim();
+    const dob    = (document.getElementById('pax-dob-'+i)?.value || '').trim();
+    const idtype = (document.getElementById('pax-idtype-'+i)?.value || '').trim();
+    const idnum  = (document.getElementById('pax-idnum-'+i)?.value || '').trim();
+    if(!name)   { alert('Please enter name for Passenger ' + (i+1)); return; }
+    if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email for Passenger ' + (i+1)); return; }
+    if(!phone || !/^\d{10}$/.test(phone)) { alert('Please enter a valid 10-digit phone for Passenger ' + (i+1)); return; }
+    if(!dob)    { alert('Please enter date of birth for Passenger ' + (i+1)); return; }
+    if(!idtype) { alert('Please select ID proof type for Passenger ' + (i+1)); return; }
+    if(!idnum)  { alert('Please enter ID proof number for Passenger ' + (i+1)); return; }
+  }
+  goToStep(2);
+}
+
+// ─── SEARCH ───
+async function doSearch() {
+  const origin = document.getElementById('origin').value;
+  const dest = document.getElementById('destination').value;
+  const date = document.getElementById('travel-date').value;
+  const selectedClass = document.getElementById('selected-class')?.value || 'economy';
+
+  if(!origin) { alert('Please select origin city.'); return; }
+  if(!dest) { alert('Please select destination city.'); return; }
+  if(origin === dest) { alert('Origin and destination cannot be the same.'); return; }
+  if(!date) { alert('Please select a travel date.'); return; }
+
+  const classId = selectedClass === 'business' ? 2 : 1;
+  state.selectedClass = classId;
+  state.paxCount = parseInt(document.getElementById('pax-count')?.value) || 1;
+
+  // Show results page with loading indicator
+  showPage('search-results');
+  document.getElementById('results-route-label').textContent = origin + ' → ' + dest;
+  document.getElementById('results-date-label').textContent = formatDate(date);
+  document.getElementById('results-pax-label').textContent = state.paxCount + ' Passenger(s) · ' + (classId===2?'Business':'Economy');
+  document.getElementById('results-count-label').textContent = 'Searching…';
+  document.getElementById('flights-list').innerHTML = '<div class="empty-state"><div class="empty-state-icon">✈️</div><h3>Searching flights…</h3></div>';
+
+  try {
+    const data = await api(`/flights/search?from=${origin}&to=${dest}&date=${date}&class_id=${classId}`);
+    const flights = data.flights || [];
+
+    // Normalise API response to match the shape expected by renderFlights()
+    state.searchResults = flights.map(f => ({
+      id:       f.flight_id,
+      fn:       f.flight_number,
+      airline:  f.airline_name,
+      iata:     f.airline_iata,
+      route:    { from: f.from_iata, to: f.to_iata },
+      dep:      new Date(f.departure_time).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', hour12:false}),
+      arr:      new Date(f.arrival_time).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', hour12:false}),
+      duration: formatDuration(f.duration_min),
+      base:     parseFloat(f.base_fare),
+      aircraft: f.aircraft_model,
+      status:   f.status,
+      available_seats: f.available_seats,
+      // keep full raw object for booking
+      _raw: f
+    }));
+
+    document.getElementById('results-count-label').textContent = state.searchResults.length + ' Flight' + (state.searchResults.length!==1?'s':'') + ' Found';
+    renderFlights(state.searchResults);
+  } catch(err) {
+    document.getElementById('flights-list').innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Search failed</h3><p>${err.message}</p></div>`;
+    document.getElementById('results-count-label').textContent = '0 Flights Found';
+  }
+}
+
+function formatDuration(mins) {
+  if(!mins) return '';
+  const h = Math.floor(mins/60), m = mins%60;
+  return `${h}h ${m}m`;
+}
+
+function quickSearch(from, to) {
+  document.getElementById('origin').value = from;
+  document.getElementById('destination').value = to;
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+2);
+  document.getElementById('travel-date').value = tomorrow.toISOString().split('T')[0];
+  doSearch();
+}
+
+function swapCities() {
+  const o = document.getElementById('origin');
+  const d = document.getElementById('destination');
+  const tmp = o.value; o.value = d.value; d.value = tmp;
+}
+
+function renderFlights(flights) {
+  const container = document.getElementById('flights-list');
+  if(!flights.length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✈️</div><h3>No flights found</h3><p>Try different dates or routes.</p></div>';
+    return;
+  }
+  container.innerHTML = flights.map(f => {
+    const baseFare = f.base * FARE_CLASSES[state.selectedClass].multiplier;
+    const gst = baseFare * 0.05;
+    const total = baseFare + gst;
+    const logoClass = f.iata === '6E' ? 'logo-indigo' : 'logo-airindia';
+    const classTag = state.selectedClass === 2 ? '<span class="tag tag-business">Business</span>' : '<span class="tag tag-economy">Economy</span>';
+    const from = AIRPORTS[f.route.from];
+    const to = AIRPORTS[f.route.to];
+    return `
+    <div class="flight-card" onclick="selectFlight(${f.id})">
+      <div class="airline-badge">
+        <div class="airline-logo ${logoClass}">${f.iata}</div>
+        <div class="airline-name">${f.airline}</div>
+        <div class="flight-number-tag">${f.fn}</div>
+      </div>
+      <div class="flight-route">
+        <div class="route-point">
+          <div class="route-time">${f.dep}</div>
+          <div class="route-iata">${f.route.from}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${from.city}</div>
+        </div>
+        <div class="route-line">
+          <div class="route-duration">${f.duration}</div>
+          <div class="route-dashes" style="position:relative;height:16px;width:100%;min-width:80px">
+            <div style="position:absolute;left:0;right:0;top:50%;height:1px;background:var(--border)"></div>
+            <span style="position:absolute;left:50%;transform:translateX(-50%);background:white;padding:0 4px;font-size:14px;top:0px;line-height:16px">✈</span>
+          </div>
+          <div class="route-stops">Non-stop</div>
+        </div>
+        <div class="route-point" style="text-align:right">
+          <div class="route-time">${f.arr}</div>
+          <div class="route-iata">${f.route.to}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${to.city}</div>
+        </div>
+      </div>
+      <div class="flight-meta">
+        <div class="flight-class">${FARE_CLASSES[state.selectedClass].name}</div>
+        <div class="flight-status">✓ Available</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:6px">${f.aircraft}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${FARE_CLASSES[state.selectedClass].baggage}kg baggage</div>
+      </div>
+      <div class="flight-price-col">
+        <div class="price-label">Per Person</div>
+        <div class="price-amount"><span>₹</span>${Math.round(total).toLocaleString('en-IN')}</div>
+        <div class="price-gst">Incl. GST</div>
+        <button class="book-now-btn" onclick="event.stopPropagation();selectFlight(${f.id})">Book Now</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function sortFlights(by) {
+  const sorted = [...state.searchResults];
+  if(by === 'price') sorted.sort((a,b) => a.base - b.base);
+  else if(by === 'duration') sorted.sort((a,b) => a.duration.localeCompare(b.duration));
+  else if(by === 'departure') sorted.sort((a,b) => a.dep.localeCompare(b.dep));
+  renderFlights(sorted);
+}
+
+function applyFilters() {
+  // Get airline checkboxes
+  const airlineBoxes = document.querySelectorAll('.filter-option input[type=checkbox]');
+  const showIndigo   = airlineBoxes[0].checked;
+  const showAirIndia = airlineBoxes[1].checked;
+  const showEconomy  = airlineBoxes[2].checked;
+  const showBusiness = airlineBoxes[3].checked;
+
+  // Get max fare
+  const maxFare = parseInt(document.getElementById('fare-range').value);
+
+  // Filter flights
+  let filtered = state.searchResults.filter(f => {
+    // Airline filter
+    const airlineOk = (f.iata === '6E' && showIndigo) || (f.iata === 'AI' && showAirIndia);
+
+    // Class filter — check selected class matches checked boxes
+    const classOk = (state.selectedClass === 1 && showEconomy) || 
+                    (state.selectedClass === 2 && showBusiness);
+
+    // Fare filter
+    const fareOk = f.base <= maxFare;
+
+    return airlineOk && classOk && fareOk;
+  });
+
+  renderFlights(filtered);
+}
+
+function updateFareRange(v) {
+  document.getElementById('fare-range-val').textContent = '₹' + parseInt(v).toLocaleString('en-IN');
+  applyFilters();
+}
+
+function updateFareRange(v) {
+  document.getElementById('fare-range-val').textContent = '₹' + parseInt(v).toLocaleString('en-IN');
+}
+
+// ─── BOOKING FLOW ───
+async function selectFlight(id) {
+  if(!state.currentUser) { openModal('login'); return; }
+  state.selectedFlight = state.searchResults.find(f => f.id === id);
+  state.selectedSeats = [];
+  state.seatSurcharge = 0;
+  state.addons = {};
+  state.addonTotal = 0;
+  document.querySelectorAll('.addon-card').forEach(c => c.classList.remove('selected'));
+
+  const f = state.selectedFlight;
+  const cls = FARE_CLASSES[state.selectedClass];
+  document.getElementById('booking-flight-title').textContent = f.airline + ' ' + f.fn + ' · ' + AIRPORTS[f.route.from].city + ' → ' + AIRPORTS[f.route.to].city;
+  document.getElementById('booking-flight-subtitle').textContent = cls.name + ' Class · ' + f.duration + ' · ' + f.status;
+
+  await buildSeatGrid();   // now async — fetches real seats
+  buildPassengerForms(state.paxCount || 1);
+  if(state.currentUser) {
+    const el0 = document.getElementById('pax-name-0');
+    const el1 = document.getElementById('pax-email-0');
+    const el2 = document.getElementById('pax-phone-0');
+    const elcn = document.getElementById('contact-name');
+    const elce = document.getElementById('contact-email');
+    const elcp = document.getElementById('contact-phone');
+    if(el0) el0.value = state.currentUser.full_name || state.currentUser.name || '';
+    if(el1) el1.value = state.currentUser.email || '';
+    if(el2) el2.value = state.currentUser.phone || '';
+    if(elcn) elcn.value = state.currentUser.full_name || state.currentUser.name || '';
+    if(elce) elce.value = state.currentUser.email || '';
+    if(elcp) elcp.value = state.currentUser.phone || '';
+  }
+  goToStep(1);
+  showPage('booking');
+}
+
+function goToStep(step) {
+  for(let i=1;i<=4;i++) {
+    const s = document.getElementById('booking-step-'+i);
+    const t = document.getElementById('step-'+i+'-tab');
+    if(s) s.classList.toggle('hidden', i !== step);
+    if(t) {
+      t.classList.remove('active','done');
+      if(i === step) t.classList.add('active');
+      else if(i < step) t.classList.add('done');
+    }
+  }
+  if(step === 4) buildReviewStep();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// ─── SEAT GRID (Live from API) ───
+async function buildSeatGrid() {
+  const grid = document.getElementById('seat-grid');
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--text-muted)">Loading seats…</div>';
+
+  let seats = [];
+  try {
+    const data = await api(`/flights/${state.selectedFlight.id}/seats?class_id=${state.selectedClass}`);
+    seats = data.seats || [];
+  } catch(e) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--danger)">Could not load seats. Please go back and try again.</div>';
+    return;
+  }
+
+  // Build seat map: group by row-number then col-letter
+  const cols = ['', 'A','B','C','D','E','F'];
+  let html = '<div class="seat-col-label"></div>';
+  cols.slice(1).forEach(c => { html += `<div class="seat-col-label">${c}</div>`; });
+
+  // Determine rows from seat numbers
+  const rowNums = [...new Set(seats.map(s => parseInt(s.seat_number)))].sort((a,b)=>a-b);
+
+  rowNums.forEach(r => {
+    html += `<div class="seat-row-label">${r}</div>`;
+    cols.slice(1).forEach((c, ci) => {
+      const seatNum = r + c;
+      const seat = seats.find(s => s.seat_number === seatNum);
+      if (!seat) {
+        html += `<div></div>`;
+        return;
+      }
+      const taken = !seat.is_available;
+      const seatTypeClass = seat.seat_type === 'Window' ? 'window' : seat.seat_type === 'Aisle' ? 'aisle' : '';
+      const surcharge = parseFloat(seat.surcharge) || 0;
+      html += `<button class="seat-btn ${seatTypeClass} ${taken?'taken':''}"
+        data-seat-id="${seat.seat_id}"
+        data-seat="${seatNum}"
+        data-type="${seatTypeClass}"
+        data-surcharge="${surcharge}"
+        onclick="${taken ? '' : 'chooseSeat(this)'}"
+        title="${seatNum} - ${seat.seat_type}${surcharge>0?' (+₹'+surcharge+')':' (Free)'}">${seatNum}</button>`;
+    });
+  });
+  grid.innerHTML = html;
+  renderSeatInfo();
+}
+
+function chooseSeat(btn) {
+  const paxCount = state.paxCount || 1;
+  const seatNum  = btn.dataset.seat;
+
+  // Deselect if already selected
+  const existingIdx = state.selectedSeats.findIndex(s => s.seat_number === seatNum);
+  if(existingIdx !== -1) {
+    state.selectedSeats.splice(existingIdx, 1);
+    btn.classList.remove('selected');
+    renderSeatInfo();
+    updateFareSummary();
+    return;
+  }
+
+  // Check if we already have enough seats
+  if(state.selectedSeats.length >= paxCount) {
+    alert(`You can only select ${paxCount} seat(s) for ${paxCount} passenger(s).\nDeselect a seat first to pick a different one.`);
+    return;
+  }
+
+  const surcharge = parseFloat(btn.dataset.surcharge) || 0;
+  state.selectedSeats.push({
+    seat_id:     parseInt(btn.dataset.seatId),
+    seat_number: seatNum,
+    seat_type:   btn.dataset.type,
+    surcharge:   surcharge
+  });
+  btn.classList.add('selected');
+  renderSeatInfo();
+  updateFareSummary();
+}
+
+function renderSeatInfo() {
+  const paxCount = state.paxCount || 1;
+  const infoEl = document.getElementById('seat-selected-info');
+  if(!infoEl) return;
+  if(state.selectedSeats.length === 0) {
+    infoEl.innerHTML = '<div style="color:var(--text-muted);font-size:13px">No seats selected yet. Please choose ' + paxCount + ' seat(s).</div>';
+    return;
+  }
+  const tags = state.selectedSeats.map((s, i) => {
+    const typeName = s.seat_type === 'window' ? 'Window (+₹300)' : s.seat_type === 'aisle' ? 'Aisle (+₹200)' : 'Middle (Free)';
+    return `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--sky-pale);border:1px solid var(--sky);color:var(--sky);padding:3px 10px;border-radius:100px;font-size:12px;font-weight:600">Pax ${i+1}: <strong>${s.seat_number}</strong> — ${typeName}</span>`;
+  }).join(' ');
+  const remaining = paxCount - state.selectedSeats.length;
+  const msg = remaining > 0
+    ? `<div style="color:var(--warn);font-size:12px;margin-top:6px">⚠ Please select ${remaining} more seat(s)</div>`
+    : `<div style="color:var(--success);font-size:12px;margin-top:6px">✓ All seats selected</div>`;
+  infoEl.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px">${tags}</div>${msg}`;
+}
+
+function generateTakenSeats(rows) {
+  // kept for API compatibility; real data comes from buildSeatGrid()
+  return new Set();
+}
+
+// ─── ADD-ONS ───
+function toggleAddon(key, price) {
+  const el = document.getElementById('addon-'+key);
+  if(state.addons[key]) {
+    delete state.addons[key];
+    el.classList.remove('selected');
+  } else {
+    state.addons[key] = price;
+    el.classList.add('selected');
+  }
+  state.addonTotal = Object.values(state.addons).reduce((a,b)=>a+b, 0);
+  updateFareSummary();
+}
+
+// ─── FARE CALCULATION ───
+function calcFare() {
+  if(!state.selectedFlight) return {base:0,discount:0,seat:0,addons:0,gst:0,total:0,discountPct:0};
+  const f = state.selectedFlight;
+  const cls = FARE_CLASSES[state.selectedClass];
+  const pax = state.paxCount || 1;
+
+  // Sum discount across all passengers (each may have different category)
+  let totalBase = 0;
+  let totalDiscount = 0;
+  for(let i = 0; i < pax; i++) {
+    const catEl = document.getElementById('pax-category-' + i);
+    const catId = catEl ? parseInt(catEl.value) : 1;
+    const discountPct = CATEGORIES[catId] ? CATEGORIES[catId].discount : 0;
+    const paxBase = f.base * cls.multiplier;
+    totalBase += paxBase;
+    totalDiscount += Math.round(paxBase * discountPct / 100);
+  }
+
+  const seat   = state.selectedSeats ? state.selectedSeats.reduce((a,s) => a + s.surcharge, 0) : 0;
+  const addons = state.addonTotal * pax;
+  const subtotal = totalBase - totalDiscount + seat + addons;
+  const gst   = Math.round(subtotal * 0.05);
+  const total = subtotal + gst;
+  return {base:Math.round(totalBase), discount:totalDiscount, seat, addons, gst, total, discountPct:0, pax};
+}
+
+function updateFareSummary() {
+  if(!state.selectedFlight) return;
+  const f   = state.selectedFlight;
+  const cls = FARE_CLASSES[state.selectedClass];
+  const pax = state.paxCount || 1;
+
+  // Build per-passenger breakdown
+  const fareBreakdownEl = document.getElementById('fare-per-pax');
+  if(fareBreakdownEl) {
+    let rows = '';
+    let grandBase = 0;
+    for(let i = 0; i < pax; i++) {
+      const catEl      = document.getElementById('pax-category-' + i);
+      const catId      = catEl ? parseInt(catEl.value) : 1;
+      const catName    = CATEGORIES[catId] ? CATEGORIES[catId].name : 'General';
+      const discPct    = CATEGORIES[catId] ? CATEGORIES[catId].discount : 0;
+      const paxBase    = Math.round(f.base * cls.multiplier);
+      const paxDisc    = Math.round(paxBase * discPct / 100);
+      const paxNet     = paxBase - paxDisc;
+      grandBase       += paxNet;
+      const nameEl     = document.getElementById('pax-name-' + i);
+      const paxLabel   = (nameEl && nameEl.value.trim()) ? nameEl.value.trim() : 'Passenger ' + (i+1);
+      rows += `<div class="fare-row" style="font-size:13px">
+        <span>${paxLabel} <span style="color:var(--text-muted);font-size:11px">(${catName}${discPct?', -'+discPct+'%':''})</span></span>
+        <span>₹${paxBase.toLocaleString('en-IN')}${paxDisc > 0 ? ' <span style="color:var(--success);font-size:11px">-₹'+paxDisc.toLocaleString('en-IN')+'</span> = ₹'+paxNet.toLocaleString('en-IN') : ''}</span>
+      </div>`;
+    }
+    fareBreakdownEl.innerHTML = rows;
+  }
+
+  // Totals
+  const fare = calcFare();
+  const discountRow = document.getElementById('fare-discount-row');
+  if(discountRow) discountRow.classList.add('hidden'); // handled per-pax above
+  setEl('fare-base', '₹' + fare.base.toLocaleString('en-IN'));
+  setEl('fare-discount', '-₹' + fare.discount.toLocaleString('en-IN'));
+  setEl('fare-seat', '₹' + fare.seat.toLocaleString('en-IN'));
+  const addonRow = document.getElementById('fare-addons-row');
+  if(addonRow) addonRow.classList.toggle('hidden', fare.addons === 0);
+  setEl('fare-addons', '₹' + fare.addons.toLocaleString('en-IN'));
+  setEl('fare-gst', '₹' + fare.gst.toLocaleString('en-IN'));
+  setEl('fare-total', '₹' + fare.total.toLocaleString('en-IN'));
+  setEl('pay-total', fare.total.toLocaleString('en-IN'));
+}
+
+// ─── REVIEW STEP ───
+function buildReviewStep() {
+  updateFareSummary();
+  const f = state.selectedFlight;
+  if(!f) return;
+  const from = AIRPORTS[f.route.from];
+  const to = AIRPORTS[f.route.to];
+  const cls = FARE_CLASSES[state.selectedClass];
+  document.getElementById('review-flight-info').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:13px;color:var(--text-muted)">${f.airline} · ${f.fn}</div>
+        <div style="font-size:17px;font-weight:700;margin-top:2px">${from.city} → ${to.city}</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:2px">${f.dep} – ${f.arr} · ${f.duration}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:12px;color:var(--text-muted)">${cls.name} Class</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:2px">Seats: <strong style="color:var(--sky)">${state.selectedSeats && state.selectedSeats.length ? state.selectedSeats.map(s=>s.seat_number).join(', ') : 'Not selected'}</strong></div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${f.status}</div>
+      </div>
+    </div>`;
+  const name = document.getElementById('contact-name').value || 'Passenger';
+  const catEl = document.getElementById('pax-category');
+  const catId = catEl ? parseInt(catEl.value) : 1;
+  const catName = CATEGORIES[catId] ? CATEGORIES[catId].name : 'General';
+  document.getElementById('review-passenger-info').innerHTML = `
+    <div style="background:var(--surface-2);border-radius:var(--radius-sm);padding:14px 16px;font-size:13px;display:flex;gap:20px;flex-wrap:wrap">
+      <div><div style="color:var(--text-muted);font-size:11px">Name</div><div style="font-weight:600">${name}</div></div>
+      <div><div style="color:var(--text-muted);font-size:11px">Email</div><div>${document.getElementById('contact-email').value||'-'}</div></div>
+      <div><div style="color:var(--text-muted);font-size:11px">Phone</div><div>${document.getElementById('contact-phone').value||'-'}</div></div>
+      <div><div style="color:var(--text-muted);font-size:11px">Category</div><div>${catName}</div></div>
+      <div><div style="color:var(--text-muted);font-size:11px">ID Type</div><div>${document.getElementById('id-type').value}</div></div>
+    </div>`;
+}
+
+// ─── CONFIRM BOOKING (calls API sp_create_booking) ───
+async function confirmBooking() {
+  const count  = parseInt(document.getElementById('pax-count')?.value) || 1;
+  const errEl  = document.getElementById('booking-error');
+
+  // Collect + validate all passengers
+  const passengers = [];
+  for(let i = 0; i < count; i++) {
+    const name  = (document.getElementById('pax-name-'+i)?.value || '').trim();
+    const email = (document.getElementById('pax-email-'+i)?.value || '').trim();
+    const phone = (document.getElementById('pax-phone-'+i)?.value || '').trim();
+    const dob   = (document.getElementById('pax-dob-'+i)?.value || '').trim();
+    if(!name)  { showAlert(errEl, 'Please enter name for Passenger ' + (i+1), 'danger'); return; }
+    if(!email) { showAlert(errEl, 'Please enter email for Passenger ' + (i+1), 'danger'); return; }
+    if(!phone || !/^\d{10}$/.test(phone)) { showAlert(errEl, 'Please enter a valid 10-digit phone for Passenger ' + (i+1), 'danger'); return; }
+    if(!dob)   { showAlert(errEl, 'Please enter date of birth for Passenger ' + (i+1), 'danger'); return; }
+    const idtype  = (document.getElementById('pax-idtype-'+i)?.value || '').trim();
+    const idnum   = (document.getElementById('pax-idnum-'+i)?.value || '').trim();
+    const catId   = parseInt(document.getElementById('pax-category-'+i)?.value || '1');
+    const paxType = (document.getElementById('pax-type-'+i)?.value || 'ADULT');
+    passengers.push({ name, email, phone, dob, idtype, idnum, catId, paxType });
+  }
+
+  const paxCount2 = passengers.length;
+  if(!state.selectedSeats || state.selectedSeats.length < paxCount2) {
+    showAlert(errEl, `Please go back and select ${paxCount2} seat(s) — one per passenger.`, 'danger'); return;
+  }
+
+  // category/type now read per-passenger inside the loop below
+  const ageEl = document.getElementById('pax-age');
+  const age   = ageEl ? parseInt(ageEl.value) || 25 : 25;
+
+  const payBtn = document.getElementById('pay-btn');
+  payBtn.disabled = true; payBtn.textContent = 'Processing…';
+
+  try {
+    let lastData = null;
+    let allBookings = [];
+    for(let i = 0; i < passengers.length; i++) {
+      const pax = passengers[i];
+      lastData = await api('/bookings', {
+        method: 'POST',
+        body: JSON.stringify({
+          flight_id:        state.selectedFlight.id,
+          class_id:         state.selectedClass,
+          seat_id:          state.selectedSeats[i] ? state.selectedSeats[i].seat_id : undefined,
+          passenger_name:   pax.name,
+          passenger_email:  pax.email,
+          passenger_phone:  pax.phone,
+          dob:              pax.dob,
+          id_proof_type:    pax.idtype,
+          id_proof_number:  pax.idnum,
+          age:              age,
+          passenger_type:   pax.paxType,
+          category_id:      pax.catId
+        })
+      });
+      allBookings.push(lastData);
+    }
+
+    // Sum total fare across all passengers (since booker pays for everyone)
+    const grandTotal = allBookings.reduce((sum, b) => sum + parseFloat(b.total_fare), 0);
+
+    const f    = state.selectedFlight;
+    const from = AIRPORTS[f.route.from] || {};
+    const to   = AIRPORTS[f.route.to]   || {};
+    const catId0  = passengers[0].catId;
+    const catName = CATEGORIES[catId0] ? CATEGORIES[catId0].name : 'General';
+    const discPct = CATEGORIES[catId0] ? CATEGORIES[catId0].discount : 0;
+
+    setEl('confirm-pnr',          lastData.pnr);
+    setEl('confirm-airline-fn',   f.airline + ' · ' + f.fn);
+    setEl('confirm-from-city',    from.city || f.route.from);
+    setEl('confirm-from-iata',    f.route.from);
+    setEl('confirm-to-city',      to.city   || f.route.to);
+    setEl('confirm-to-iata',      f.route.to);
+    setEl('confirm-dep-time',     f.dep);
+    setEl('confirm-arr-time',     f.arr);
+    setEl('confirm-class',        FARE_CLASSES[state.selectedClass].name);
+    setEl('confirm-pax-name',     passengers.map(p=>p.name).join(', '));
+    setEl('confirm-pax-category', catName + (discPct ? ' · ' + discPct + '% discount applied' : ''));
+    setEl('confirm-seat-num',     state.selectedSeats.map(s=>s.seat_number).join(', '));
+    setEl('confirm-total-amt',    '₹' + grandTotal.toLocaleString('en-IN'));
+    errEl.classList.add('hidden');
+
+    showPage('confirmation');
+  } catch(err) {
+    showAlert(errEl, err.message || 'Booking failed. Please try again.', 'danger');
+  } finally {
+    payBtn.disabled = false;
+    payBtn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-right:6px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Confirm & Pay ₹<span id="pay-total">${document.getElementById('pay-total')?.textContent||'0'}</span>`;
+  }
+}
+
+function generatePnr() {
+  // kept for compatibility — real PNR is generated by DB trigger
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', nums = '0123456789';
+  return chars[Math.floor(Math.random()*26)]+chars[Math.floor(Math.random()*26)]+
+    nums[Math.floor(Math.random()*10)]+nums[Math.floor(Math.random()*10)]+
+    chars[Math.floor(Math.random()*26)]+chars[Math.floor(Math.random()*26)];
+}
+
+// ─── MY BOOKINGS (from API) ───
+async function renderMyBookings() {
+  const container = document.getElementById('my-bookings-list');
+  if(!state.currentUser) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><h3>Please login to view bookings</h3></div>';
+    return;
+  }
+  container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⏳</div><h3>Loading your bookings…</h3></div>';
+  try {
+    const data = await api('/bookings/my');
+    const myBookings = data.bookings || [];
+    if(!myBookings.length) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">✈️</div><h3>No bookings yet</h3><p>Your upcoming and past flights will appear here.</p><button class="btn btn-primary" onclick="showPage(\'home\')" style="margin-top:16px">Book a Flight</button></div>';
+      return;
+    }
+    container.innerHTML = myBookings.map(b => {
+      const statusClass = b.booking_status === 'CONFIRMED' ? 'status-confirmed' : b.booking_status === 'CANCELLED' ? 'status-cancelled' : 'status-waitlisted';
+      const dep = new Date(b.departure_time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+      const arr = new Date(b.arrival_time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+      return `
+      <div class="booking-item">
+        <div class="booking-item-header">
+          <div>
+            <span class="booking-pnr">${b.pnr_number}</span>
+            <span style="font-size:13px;color:var(--text-muted);margin-left:12px">Booked ${new Date(b.booked_on).toLocaleDateString('en-IN')}</span>
+          </div>
+          <span class="status-badge ${statusClass}">${b.booking_status}</span>
+        </div>
+        <div class="booking-route">
+          ${b.from_city} <span style="color:var(--sky)">✈</span> ${b.to_city}
+          <span style="font-size:13px;color:var(--text-muted);font-weight:400">· ${b.flight_number} · ${b.airline_name}</span>
+        </div>
+        <div class="booking-details-row">
+          <div class="booking-detail-item"><strong>${dep} – ${arr}</strong>Time</div>
+          <div class="booking-detail-item"><strong>${b.class_name}</strong>Class</div>
+          <div class="booking-detail-item"><strong>${b.seat_number}</strong>Seat</div>
+          <div class="booking-detail-item"><strong>₹${parseFloat(b.total_fare).toLocaleString('en-IN')}</strong>Total Paid</div>
+          <div class="booking-detail-item"><strong>${b.passenger_name}</strong>Passenger</div>
+          ${b.booking_status === 'CONFIRMED' ?
+            `<div style="margin-left:auto">
+              <button class="cancel-btn" onclick="cancelBooking(${b.booking_id}, '${b.pnr_number}', ${b.total_fare})">Cancel Booking</button>
+            </div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch(err) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Could not load bookings</h3><p>${err.message}</p></div>`;
+  }
+}
+
+async function cancelBooking(bookingId, pnr, totalFare) {
+  const refundPct = 75;
+  const refund = Math.round(totalFare * refundPct / 100);
+  if(!confirm(`Cancel booking ${pnr}?\n\nEstimated Refund: ₹${refund.toLocaleString('en-IN')} (based on time before departure)\nActual refund is calculated by the system.`)) return;
+  try {
+    const data = await api(`/bookings/${bookingId}`, { method: 'DELETE' });
+    alert(data.message || `Booking ${pnr} cancelled. Refund will be processed in 5–7 business days.`);
+    renderMyBookings();
+  } catch(err) {
+    alert('Cancellation failed: ' + err.message);
+  }
+}
+
+// ─── PNR LOOKUP (from API) ───
+async function lookupPnr() {
+  const pnr = document.getElementById('pnr-input').value.trim().toUpperCase();
+  const resultEl = document.getElementById('pnr-result');
+  if(!pnr || pnr.length !== 6) {
+    resultEl.innerHTML = '<div class="alert alert-danger" style="margin-top:16px">Please enter a valid 6-character PNR.</div>';
+    return;
+  }
+  resultEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)">Looking up PNR…</div>';
+  try {
+    const data = await api(`/bookings/pnr/${pnr}`);
+    const b = data.booking;
+    const dep = new Date(b.departure_time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+    const arr = new Date(b.arrival_time).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:false});
+    resultEl.innerHTML = `
+      <div style="margin-top:20px;background:var(--surface);border:1.5px solid var(--border-soft);border-radius:var(--radius);padding:20px;text-align:left;box-shadow:var(--shadow)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div style="font-size:20px;font-weight:800;letter-spacing:2px">${pnr}</div>
+          <span class="status-badge ${b.booking_status==='CONFIRMED'?'status-confirmed':'status-cancelled'}">${b.booking_status}</span>
+        </div>
+        <div style="background:var(--navy);border-radius:var(--radius-sm);padding:16px;color:white;margin-bottom:14px">
+          <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:8px">${b.airline_name} · ${b.flight_number}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><div style="font-size:20px;font-weight:700">${b.from_city}</div><div style="font-size:12px;color:rgba(255,255,255,0.5)">${b.from_iata}</div></div>
+            <div style="color:var(--gold-light)">✈</div>
+            <div style="text-align:right"><div style="font-size:20px;font-weight:700">${b.to_city}</div><div style="font-size:12px;color:rgba(255,255,255,0.5)">${b.to_iata}</div></div>
+          </div>
+          <div style="display:flex;gap:16px;margin-top:12px;font-size:13px;color:rgba(255,255,255,0.6)">
+            <span><strong style="color:white">${dep}</strong> Dep</span>
+            <span><strong style="color:white">${arr}</strong> Arr</span>
+            <span><strong style="color:white">${b.class_name}</strong> Class</span>
+          </div>
+        </div>
+        <div style="font-size:14px;color:var(--text-secondary)">Passenger: <strong>${b.passenger}</strong></div>
+        <div style="font-size:14px;color:var(--text-secondary);margin-top:6px">Total Paid: <strong style="color:var(--sky)">₹${parseFloat(b.total_fare).toLocaleString('en-IN')}</strong></div>
+        ${b.refund_amount ? `<div style="font-size:14px;color:var(--success);margin-top:6px">Refund: ₹${parseFloat(b.refund_amount).toLocaleString('en-IN')}</div>` : ''}
+      </div>`;
+  } catch(err) {
+    resultEl.innerHTML = `<div class="alert alert-danger" style="margin-top:16px">No booking found for PNR <strong>${pnr}</strong>. ${err.message}</div>`;
+  }
+}
+
+// ─── AUTH ───
+function openModal(tab) {
+  document.getElementById('auth-modal').classList.add('open');
+  switchTab(tab || 'login');
+}
+
+function closeModal() {
+  document.getElementById('auth-modal').classList.remove('open');
+}
+
+function switchTab(tab) {
+  document.getElementById('login-form').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('register-form').classList.toggle('hidden', tab !== 'register');
+  document.getElementById('tab-login').classList.toggle('active', tab === 'login');
+  document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+  document.getElementById('modal-title').textContent = tab === 'login' ? 'Welcome Back' : 'Create Account';
+  document.getElementById('modal-sub').textContent = tab === 'login' ? 'Sign in to access your bookings' : 'Join VayuSetu for the best fares';
+}
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  const pass  = document.getElementById('login-password').value;
+  const alertEl = document.getElementById('login-alert');
+  if(!email || !pass) { showAlert(alertEl, 'Please fill all fields.', 'danger'); return; }
+
+  const btn = document.querySelector('#login-form .btn-primary');
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const data = await api('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password: pass })
+    });
+    localStorage.setItem('vs_token', data.token);
+    localStorage.setItem('vs_user',  JSON.stringify(data.user));
+    state.currentUser = data.user;
+    updateNavForUser(data.user);
+    closeModal();
+  } catch(err) {
+    showAlert(alertEl, err.message || 'Login failed.', 'danger');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+}
+
+async function doRegister() {
+  const name     = document.getElementById('reg-name').value.trim();
+  const email    = document.getElementById('reg-email').value.trim().toLowerCase();
+  const phone    = document.getElementById('reg-phone').value.trim();
+  const pass     = document.getElementById('reg-password').value;
+  const dob      = document.getElementById('reg-dob').value;
+  const gender   = document.getElementById('reg-gender').value;
+  const category = parseInt(document.getElementById('reg-category').value);
+  const alertEl  = document.getElementById('reg-alert');
+
+  if(!name||!email||!phone||!pass||!dob) { showAlert(alertEl,'Please fill all fields.','danger'); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showAlert(alertEl,'Invalid email format.','danger'); return; }
+  if(!/^\d{10}$/.test(phone)) { showAlert(alertEl,'Phone must be 10 digits.','danger'); return; }
+  if(pass.length < 8) { showAlert(alertEl,'Password must be at least 8 characters.','danger'); return; }
+
+  const btn = document.querySelector('#register-form .btn-primary');
+  btn.disabled = true; btn.textContent = 'Creating account…';
+  try {
+    const data = await api('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ full_name: name, email, phone, password: pass, dob, gender, category_id: category })
+    });
+    localStorage.setItem('vs_token', data.token);
+    localStorage.setItem('vs_user',  JSON.stringify(data.user));
+    state.currentUser = data.user;
+    updateNavForUser(data.user);
+    closeModal();
+  } catch(err) {
+    showAlert(alertEl, err.message || 'Registration failed.', 'danger');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create Account';
+  }
+}
+
+function updateNavForUser(user) {
+  const displayName = user.full_name || user.name || 'User';
+  document.getElementById('nav-actions').innerHTML = `
+    <div style="color:rgba(255,255,255,0.8);font-size:13px;display:flex;align-items:center;gap:8px">
+      <div style="width:30px;height:30px;background:var(--sky);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white">${displayName[0].toUpperCase()}</div>
+      <span>${displayName.split(' ')[0]}</span>
+    </div>
+    <button class="nav-btn nav-btn-ghost" onclick="logout()">Logout</button>`;
+}
+
+function logout() {
+  state.currentUser = null;
+  localStorage.removeItem('vs_token');
+  localStorage.removeItem('vs_user');
+  document.getElementById('nav-actions').innerHTML = `
+    <button class="nav-btn nav-btn-ghost" onclick="openModal('login')">Login</button>
+    <button class="nav-btn nav-btn-primary" onclick="openModal('register')">Register</button>`;
+  showPage('home');
+}
+
+// ─── UTILITIES ───
+function setEl(id, val) { const el = document.getElementById(id); if(el) el.textContent = val; }
+
+function showAlert(el, msg, type) {
+  if(!el) return;
+  if(!msg) { el.className = 'alert hidden'; el.textContent = ''; return; }
+  el.className = `alert alert-${type}`;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function formatDate(d) {
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('en-IN', {weekday:'short', year:'numeric', month:'short', day:'numeric'});
+}
+
+function setTripType(btn, type) {
+  document.querySelectorAll('.trip-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ─── INIT ───
+document.addEventListener('click', e => {
+  if(e.target === document.getElementById('auth-modal')) closeModal();
+});
+
+// Set default date (tomorrow)
+const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+document.getElementById('travel-date').value = tomorrow.toISOString().split('T')[0];
+
+// Boot the app — restores session and loads reference data from API
+initApp();
+</script>
+</body>
+</html>
