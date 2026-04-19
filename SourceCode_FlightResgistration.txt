@@ -1,0 +1,1478 @@
+-- ============================================================
+--  FlightReservation_DbMs  —  COMPLETE FIXED SCHEMA
+--  Run this entire file fresh in MySQL 8.0+
+-- ============================================================
+
+SET FOREIGN_KEY_CHECKS = 0;
+SET SQL_MODE = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,
+                ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
+
+DROP DATABASE IF EXISTS FlightReservation_DbMs;
+CREATE DATABASE FlightReservation_DbMs
+    CHARACTER SET utf8mb4
+    COLLATE utf8mb4_unicode_ci;
+USE FlightReservation_DbMs;
+
+-- ============================================================
+-- 1. passenger_categories
+-- ============================================================
+CREATE TABLE passenger_categories (
+    category_id   TINYINT UNSIGNED AUTO_INCREMENT,
+    category_name VARCHAR(50)     NOT NULL,
+    discount_pct  DECIMAL(5,2)    NOT NULL DEFAULT 0.00,
+    required_doc  VARCHAR(100)    NOT NULL,
+    is_active     BOOLEAN         NOT NULL DEFAULT TRUE,
+    created_at    DATETIME        DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME        DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (category_id),
+    UNIQUE KEY uq_category_name (category_name),
+    CONSTRAINT chk_discount CHECK (discount_pct BETWEEN 0 AND 100)
+) ENGINE=InnoDB;
+
+INSERT INTO passenger_categories (category_name, discount_pct, required_doc) VALUES
+('General',        0.00, 'None'),
+('Student',       10.00, 'Valid Student ID'),
+('Senior Citizen', 8.00, 'Age Proof'),
+('Armed Forces',  30.00, 'Military ID'),
+('Disabled',      10.00, 'Disability Certificate');
+
+-- ============================================================
+-- 2. users
+-- ============================================================
+CREATE TABLE users (
+    user_id       INT UNSIGNED    AUTO_INCREMENT,
+    full_name     VARCHAR(100)    NOT NULL,
+    email         VARCHAR(150)    NOT NULL,
+    phone         VARCHAR(10)     NOT NULL,
+    password_hash VARCHAR(255)    NOT NULL,
+    dob           DATE            NOT NULL,
+    gender        ENUM('M','F','O') NOT NULL,
+    category_id   TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    is_active     BOOLEAN         NOT NULL DEFAULT TRUE,
+    created_at    DATETIME        DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME        DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id),
+    UNIQUE KEY uq_email (email),
+    CONSTRAINT fk_user_category
+        FOREIGN KEY (category_id) REFERENCES passenger_categories(category_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    INDEX idx_users_category (category_id),
+    INDEX idx_users_active   (is_active)
+) ENGINE=InnoDB;
+
+DELIMITER $$
+
+CREATE TRIGGER trg_users_insert
+BEFORE INSERT ON users
+FOR EACH ROW
+BEGIN
+    SET NEW.email     = LOWER(TRIM(NEW.email));
+    SET NEW.full_name = TRIM(NEW.full_name);
+    SET NEW.phone     = TRIM(NEW.phone);
+
+    IF NEW.email NOT REGEXP '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Invalid email format';
+    END IF;
+    IF NEW.phone NOT REGEXP '^[0-9]{10}$' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Phone must be exactly 10 digits';
+    END IF;
+    IF LENGTH(NEW.password_hash) < 60 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Invalid password hash (min 60 chars)';
+    END IF;
+    IF NEW.dob > CURDATE() THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'DOB cannot be a future date';
+    END IF;
+    IF TIMESTAMPDIFF(YEAR, NEW.dob, CURDATE()) < 5 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User must be at least 5 years old';
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- Sample user (bcrypt-style hash, 60 chars)
+INSERT INTO users (full_name, email, phone, password_hash, dob, gender, category_id)
+VALUES (
+    'Rahul Sharma',
+    'rahul@example.com',
+    '9876543210',
+    '$2b$12$KIXJiHoFSGRGoVKZiIBOauLLHBKRhsKAOHqVlXr7yBjZfIbSlEHWy',
+    '2003-06-15',
+    'M',
+    1
+);
+
+-- ============================================================
+-- 3. airlines
+-- ============================================================
+CREATE TABLE airlines (
+    airline_id    INT UNSIGNED  AUTO_INCREMENT,
+    airline_name  VARCHAR(100)  NOT NULL,
+    iata_code     CHAR(2)       NOT NULL,
+    icao_code     CHAR(3)       NOT NULL,
+    country       VARCHAR(50)   NOT NULL DEFAULT 'India',
+    support_email VARCHAR(150),
+    is_active     BOOLEAN       NOT NULL DEFAULT TRUE,
+    created_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (airline_id),
+    UNIQUE KEY uq_iata (iata_code),
+    UNIQUE KEY uq_icao (icao_code),
+    INDEX idx_airlines_active (is_active)
+) ENGINE=InnoDB;
+
+INSERT INTO airlines (airline_name, iata_code, icao_code, support_email) VALUES
+('IndiGo',    '6E', 'IGO', 'support@indigo.in'),
+('Air India', 'AI', 'AIC', 'support@airindia.in');
+
+-- ============================================================
+-- 4. aircrafts
+-- ============================================================
+CREATE TABLE aircrafts (
+    aircraft_id      INT UNSIGNED  AUTO_INCREMENT,
+    airline_id       INT UNSIGNED  NOT NULL,
+    model            VARCHAR(50)   NOT NULL,
+    registration_no  VARCHAR(10)   NOT NULL,
+    total_seats      SMALLINT      NOT NULL,
+    manufacture_year YEAR          NOT NULL,
+    is_operational   BOOLEAN       NOT NULL DEFAULT TRUE,
+    created_at       DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (aircraft_id),
+    UNIQUE KEY uq_registration (registration_no),
+    CONSTRAINT fk_aircraft_airline
+        FOREIGN KEY (airline_id) REFERENCES airlines(airline_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT chk_seats        CHECK (total_seats BETWEEN 50 AND 300),
+    CONSTRAINT chk_mfr_year     CHECK (manufacture_year >= 1970),
+    INDEX idx_aircraft_airline      (airline_id),
+    INDEX idx_aircraft_operational  (is_operational)
+) ENGINE=InnoDB;
+
+DELIMITER $$
+
+CREATE TRIGGER trg_aircraft_insert
+BEFORE INSERT ON aircrafts
+FOR EACH ROW
+BEGIN
+    SET NEW.registration_no = UPPER(TRIM(NEW.registration_no));
+    SET NEW.model           = TRIM(NEW.model);
+    IF NEW.total_seats < 50 OR NEW.total_seats > 300 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seats must be between 50 and 300';
+    END IF;
+    IF NEW.manufacture_year > YEAR(CURDATE()) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Manufacture year cannot be in the future';
+    END IF;
+END$$
+
+DELIMITER ;
+
+INSERT INTO aircrafts (airline_id, model, registration_no, total_seats, manufacture_year) VALUES
+(1, 'Airbus A320', 'VT-INA', 180, 2015),
+(1, 'Airbus A321', 'VT-INB', 220, 2018),
+(2, 'Boeing 737',  'VT-AIA', 160, 2014),
+(2, 'Boeing 777',  'VT-AIB', 300, 2016);
+
+-- ============================================================
+-- 5. airports
+-- ============================================================
+CREATE TABLE airports (
+    airport_id    INT UNSIGNED  AUTO_INCREMENT,
+    airport_name  VARCHAR(150)  NOT NULL,
+    iata_code     CHAR(3)       NOT NULL,
+    icao_code     CHAR(4)       NOT NULL,
+    city          VARCHAR(100)  NOT NULL,
+    state         VARCHAR(100)  NOT NULL,
+    terminal_code VARCHAR(20)   NOT NULL,
+    is_active     BOOLEAN       NOT NULL DEFAULT TRUE,
+    created_at    DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (airport_id),
+    UNIQUE KEY uq_airport_iata (iata_code),
+    UNIQUE KEY uq_airport_icao (icao_code),
+    CONSTRAINT chk_airport_iata CHECK (iata_code REGEXP '^[A-Z]{3}$'),
+    CONSTRAINT chk_airport_icao CHECK (icao_code REGEXP '^[A-Z]{4}$'),
+    INDEX idx_airport_city   (city),
+    INDEX idx_airport_active (is_active)
+) ENGINE=InnoDB;
+
+INSERT INTO airports (airport_name, iata_code, icao_code, city, state, terminal_code) VALUES
+('Indira Gandhi International Airport',                     'DEL','VIDP','New Delhi', 'Delhi',        'T1,T2,T3'),
+('Chhatrapati Shivaji Maharaj International Airport',       'BOM','VABB','Mumbai',    'Maharashtra',  'T1,T2'),
+('Kempegowda International Airport',                        'BLR','VOBL','Bengaluru', 'Karnataka',    'T1,T2'),
+('Rajiv Gandhi International Airport',                      'HYD','VOHS','Hyderabad', 'Telangana',    'T1'),
+('Chennai International Airport',                           'MAA','VOMM','Chennai',   'Tamil Nadu',   'T1,T2'),
+('Netaji Subhas Chandra Bose International Airport',        'CCU','VECC','Kolkata',   'West Bengal',  'T1,T2'),
+('Sardar Vallabhbhai Patel International Airport',          'AMD','VAAH','Ahmedabad', 'Gujarat',      'T1'),
+('Pune Airport',                                            'PNQ','VAPO','Pune',      'Maharashtra',  'T1'),
+('Lokpriya Gopinath Bordoloi International Airport',        'GAU','VEGT','Guwahati',  'Assam',        'T1'),
+('Jaipur International Airport',                            'JAI','VIJP','Jaipur',    'Rajasthan',    'T1');
+
+-- ============================================================
+-- 6. routes
+-- ============================================================
+CREATE TABLE routes (
+    route_id               INT UNSIGNED AUTO_INCREMENT,
+    airline_id             INT UNSIGNED NOT NULL,
+    origin_airport_id      INT UNSIGNED NOT NULL,
+    destination_airport_id INT UNSIGNED NOT NULL,
+    is_active              BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at             DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    updated_at             DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (route_id),
+    UNIQUE KEY uq_airline_route (airline_id, origin_airport_id, destination_airport_id),
+    CONSTRAINT fk_route_airline
+        FOREIGN KEY (airline_id) REFERENCES airlines(airline_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_route_origin
+        FOREIGN KEY (origin_airport_id) REFERENCES airports(airport_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_route_destination
+        FOREIGN KEY (destination_airport_id) REFERENCES airports(airport_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT chk_route_not_same CHECK (origin_airport_id <> destination_airport_id),
+    INDEX idx_route_origin      (origin_airport_id),
+    INDEX idx_route_destination (destination_airport_id),
+    INDEX idx_route_airline     (airline_id)
+) ENGINE=InnoDB;
+
+INSERT INTO routes (airline_id, origin_airport_id, destination_airport_id) VALUES
+(1,1,2),(1,2,1),(1,1,3),(1,3,1),(1,1,4),(1,2,3),
+(2,1,2),(2,2,1),(2,1,6),(2,6,1);
+
+-- ============================================================
+-- 7. flights
+-- ============================================================
+CREATE TABLE flights (
+    flight_id      INT UNSIGNED  AUTO_INCREMENT,
+    flight_number  VARCHAR(10)   NOT NULL,
+    route_id       INT UNSIGNED  NOT NULL,
+    aircraft_id    INT UNSIGNED  NOT NULL,
+    departure_time DATETIME      NOT NULL,
+    arrival_time   DATETIME      NOT NULL,
+    base_fare      DECIMAL(10,2) NOT NULL,
+    status         ENUM('Scheduled','Delayed','Cancelled','Boarding','Departed','Completed')
+                                  NOT NULL DEFAULT 'Scheduled',
+    delay_minutes  SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+    is_active      BOOLEAN       NOT NULL DEFAULT TRUE,
+    created_at     DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    updated_at     DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (flight_id),
+    UNIQUE KEY uq_flight_number (flight_number),
+    CONSTRAINT fk_flight_route
+        FOREIGN KEY (route_id) REFERENCES routes(route_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_flight_aircraft
+        FOREIGN KEY (aircraft_id) REFERENCES aircrafts(aircraft_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT chk_arrival_after_departure CHECK (arrival_time > departure_time),
+    CONSTRAINT chk_base_fare   CHECK (base_fare > 0),
+    CONSTRAINT chk_delay_min   CHECK (delay_minutes >= 0),
+    INDEX idx_flight_route  (route_id),
+    INDEX idx_flight_status (status),
+    INDEX idx_flight_depart (departure_time)
+) ENGINE=InnoDB;
+
+DELIMITER $$
+
+CREATE TRIGGER trg_flights_insert
+BEFORE INSERT ON flights
+FOR EACH ROW
+BEGIN
+    SET NEW.flight_number = UPPER(TRIM(NEW.flight_number));
+    IF NEW.departure_time <= NOW() THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Departure time must be in the future';
+    END IF;
+    IF NEW.arrival_time <= NEW.departure_time THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Arrival must be after departure';
+    END IF;
+    IF TIMESTAMPDIFF(MINUTE, NEW.departure_time, NEW.arrival_time) < 20 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Flight duration too short (min 20 min)';
+    END IF;
+    IF TIMESTAMPDIFF(MINUTE, NEW.departure_time, NEW.arrival_time) > 720 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Flight duration too long (max 12 hrs)';
+    END IF;
+    IF NEW.base_fare <= 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Base fare must be > 0';
+    END IF;
+    IF NEW.delay_minutes > 0 AND NEW.status != 'Delayed' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'delay_minutes > 0 requires status = Delayed';
+    END IF;
+END$$
+
+CREATE TRIGGER trg_flights_update
+BEFORE UPDATE ON flights
+FOR EACH ROW
+BEGIN
+    IF NEW.arrival_time <= NEW.departure_time THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Arrival must be after departure';
+    END IF;
+    IF NEW.delay_minutes > 0 AND NEW.status != 'Delayed' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'delay_minutes > 0 requires status = Delayed';
+    END IF;
+    IF OLD.status IN ('Cancelled','Completed') AND NEW.status = 'Scheduled' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot revert flight status to Scheduled';
+    END IF;
+END$$
+
+DELIMITER ;
+
+INSERT INTO flights (flight_number, route_id, aircraft_id, departure_time, arrival_time, base_fare) VALUES
+('6E101', 1, 1, DATE_ADD(NOW(), INTERVAL 2 DAY),  DATE_ADD(NOW(), INTERVAL 2 DAY)  + INTERVAL 130 MINUTE, 3500.00),
+('6E102', 2, 1, DATE_ADD(NOW(), INTERVAL 3 DAY),  DATE_ADD(NOW(), INTERVAL 3 DAY)  + INTERVAL 135 MINUTE, 3200.00),
+('6E103', 3, 2, DATE_ADD(NOW(), INTERVAL 4 DAY),  DATE_ADD(NOW(), INTERVAL 4 DAY)  + INTERVAL 170 MINUTE, 4100.00),
+('6E104', 4, 2, DATE_ADD(NOW(), INTERVAL 5 DAY),  DATE_ADD(NOW(), INTERVAL 5 DAY)  + INTERVAL 175 MINUTE, 3800.00),
+('AI201', 7, 3, DATE_ADD(NOW(), INTERVAL 2 DAY),  DATE_ADD(NOW(), INTERVAL 2 DAY)  + INTERVAL 140 MINUTE, 4500.00),
+('AI202', 8, 3, DATE_ADD(NOW(), INTERVAL 3 DAY),  DATE_ADD(NOW(), INTERVAL 3 DAY)  + INTERVAL 145 MINUTE, 4200.00),
+('AI203', 9, 4, DATE_ADD(NOW(), INTERVAL 4 DAY),  DATE_ADD(NOW(), INTERVAL 4 DAY)  + INTERVAL 150 MINUTE, 5200.00),
+('AI204',10, 4, DATE_ADD(NOW(), INTERVAL 5 DAY),  DATE_ADD(NOW(), INTERVAL 5 DAY)  + INTERVAL 155 MINUTE, 4900.00);
+
+-- ============================================================
+-- 8. fare_classes
+-- ============================================================
+CREATE TABLE fare_classes (
+    class_id         TINYINT UNSIGNED AUTO_INCREMENT,
+    class_name       VARCHAR(50)   NOT NULL,
+    free_baggage_kg  TINYINT UNSIGNED NOT NULL DEFAULT 15,
+    seat_selection   BOOLEAN       NOT NULL DEFAULT FALSE,
+    price_multiplier DECIMAL(4,2)  NOT NULL DEFAULT 1.00,
+    is_active        BOOLEAN       NOT NULL DEFAULT TRUE,
+    created_at       DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    updated_at       DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (class_id),
+    UNIQUE KEY uq_class_name (class_name),
+    CONSTRAINT chk_free_baggage CHECK (free_baggage_kg >= 0),
+    CONSTRAINT chk_multiplier   CHECK (price_multiplier > 0.00)
+) ENGINE=InnoDB;
+
+INSERT INTO fare_classes (class_id, class_name, free_baggage_kg, seat_selection, price_multiplier) VALUES
+(1, 'Economy',  15, FALSE, 1.00),
+(2, 'Business', 25, TRUE,  2.50);
+
+-- ============================================================
+-- 9. seat_types
+-- ============================================================
+CREATE TABLE seat_types (
+    type_id   TINYINT UNSIGNED AUTO_INCREMENT,
+    type_name VARCHAR(30)   NOT NULL,
+    surcharge DECIMAL(8,2)  NOT NULL DEFAULT 0.00,
+    is_free   BOOLEAN       NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (type_id),
+    UNIQUE KEY uq_type_name (type_name),
+    CONSTRAINT chk_surcharge CHECK (surcharge >= 0.00)
+) ENGINE=InnoDB;
+
+INSERT INTO seat_types (type_id, type_name, surcharge, is_free) VALUES
+(1, 'Window', 300.00, FALSE),
+(2, 'Middle',   0.00, TRUE),
+(3, 'Aisle',  200.00, FALSE);
+
+-- ============================================================
+-- 10. seat_inventory
+-- ============================================================
+CREATE TABLE seat_inventory (
+    seat_id      INT UNSIGNED  AUTO_INCREMENT,
+    flight_id    INT UNSIGNED  NOT NULL,
+    seat_number  VARCHAR(5)    NOT NULL,
+    type_id      TINYINT UNSIGNED NOT NULL,
+    class_id     TINYINT UNSIGNED NOT NULL,
+    is_available BOOLEAN       NOT NULL DEFAULT TRUE,
+    is_blocked   BOOLEAN       NOT NULL DEFAULT FALSE,
+    created_at   DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (seat_id),
+    UNIQUE KEY uq_seat_per_flight (flight_id, seat_number),
+    CONSTRAINT fk_seat_flight
+        FOREIGN KEY (flight_id) REFERENCES flights(flight_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_seat_type
+        FOREIGN KEY (type_id) REFERENCES seat_types(type_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_seat_class
+        FOREIGN KEY (class_id) REFERENCES fare_classes(class_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    INDEX idx_seat_flight_avail (flight_id, is_available),
+    INDEX idx_seat_class (class_id),
+    INDEX idx_seat_type  (type_id)
+) ENGINE=InnoDB;
+
+DELIMITER $$
+
+CREATE TRIGGER trg_seat_inventory_before_insert
+BEFORE INSERT ON seat_inventory
+FOR EACH ROW
+BEGIN
+    DECLARE v_flight_status VARCHAR(20);
+    SET NEW.seat_number = UPPER(TRIM(NEW.seat_number));
+    SELECT status INTO v_flight_status FROM flights WHERE flight_id = NEW.flight_id;
+    IF v_flight_status = 'Cancelled' THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Cannot add seats to a cancelled flight';
+    END IF;
+    IF NEW.is_blocked = TRUE AND NEW.is_available = TRUE THEN
+        SET NEW.is_available = FALSE;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- PROCEDURE: sp_generate_seats_for_flight
+-- ============================================================
+DROP PROCEDURE IF EXISTS sp_generate_seats_for_flight$$
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_generate_seats_for_flight(
+    IN  p_flight_id   INT UNSIGNED,
+    OUT p_seats_added INT,
+    OUT p_message     VARCHAR(200)
+)
+proc_label: BEGIN
+    DECLARE v_total_seats   SMALLINT DEFAULT 0;
+    DECLARE v_business_rows SMALLINT DEFAULT 0;
+    DECLARE v_economy_rows  SMALLINT DEFAULT 0;
+    DECLARE v_current_row   SMALLINT DEFAULT 1;
+    DECLARE v_inserted      INT      DEFAULT 0;
+    DECLARE v_flight_exists INT      DEFAULT 0;
+    DECLARE v_already_done  INT      DEFAULT 0;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET p_seats_added = 0;
+        SET p_message = 'Seat generation failed — rolled back';
+    END;
+
+    SELECT COUNT(*) INTO v_flight_exists
+    FROM flights WHERE flight_id = p_flight_id AND status != 'Cancelled';
+    IF v_flight_exists = 0 THEN
+        SET p_seats_added = 0;
+        SET p_message = 'Flight not found or is cancelled';
+        LEAVE proc_label;
+    END IF;
+
+    SELECT COUNT(*) INTO v_already_done FROM seat_inventory WHERE flight_id = p_flight_id;
+    IF v_already_done > 0 THEN
+        SET p_seats_added = 0;
+        SET p_message = 'Seats already generated for this flight';
+        LEAVE proc_label;
+    END IF;
+
+    SELECT ac.total_seats INTO v_total_seats
+    FROM flights f
+    JOIN aircrafts ac ON f.aircraft_id = ac.aircraft_id
+    WHERE f.flight_id = p_flight_id;
+
+    SET v_business_rows = CEIL((v_total_seats * 0.20) / 3);
+    SET v_economy_rows  = CEIL((v_total_seats - (v_business_rows * 3)) / 6);
+
+    START TRANSACTION;
+
+    -- Business rows (3 seats each: A=Window, B=Middle, C=Aisle)
+    SET v_current_row = 1;
+    WHILE v_current_row <= v_business_rows DO
+        INSERT INTO seat_inventory (flight_id, seat_number, type_id, class_id) VALUES
+            (p_flight_id, CONCAT(v_current_row,'A'), 1, 2),
+            (p_flight_id, CONCAT(v_current_row,'B'), 2, 2),
+            (p_flight_id, CONCAT(v_current_row,'C'), 3, 2);
+        SET v_inserted    = v_inserted + 3;
+        SET v_current_row = v_current_row + 1;
+    END WHILE;
+
+    -- Economy rows (6 seats each: A=Window, B=Middle, C=Aisle, D=Aisle, E=Middle, F=Window)
+    SET v_current_row = v_business_rows + 1;
+    WHILE v_current_row <= (v_business_rows + v_economy_rows) DO
+        INSERT INTO seat_inventory (flight_id, seat_number, type_id, class_id) VALUES
+            (p_flight_id, CONCAT(v_current_row,'A'), 1, 1),
+            (p_flight_id, CONCAT(v_current_row,'B'), 2, 1),
+            (p_flight_id, CONCAT(v_current_row,'C'), 3, 1),
+            (p_flight_id, CONCAT(v_current_row,'D'), 3, 1),
+            (p_flight_id, CONCAT(v_current_row,'E'), 2, 1),
+            (p_flight_id, CONCAT(v_current_row,'F'), 1, 1);
+        SET v_inserted    = v_inserted + 6;
+        SET v_current_row = v_current_row + 1;
+    END WHILE;
+
+    COMMIT;
+
+    SET p_seats_added = v_inserted;
+    SET p_message = CONCAT('Generated ', v_inserted, ' seats for flight_id ', p_flight_id);
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- PROCEDURE: sp_get_available_seats
+-- ============================================================
+DROP PROCEDURE IF EXISTS sp_get_available_seats;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_get_available_seats(
+    IN p_flight_id INT UNSIGNED,
+    IN p_class_id  TINYINT UNSIGNED   -- pass 0 for all classes
+)
+BEGIN
+    SELECT si.seat_id, si.seat_number, fc.class_name,
+           st.type_name, st.surcharge, st.is_free, si.is_available
+    FROM seat_inventory si
+    JOIN fare_classes fc ON si.class_id = fc.class_id
+    JOIN seat_types   st ON si.type_id  = st.type_id
+    WHERE si.flight_id    = p_flight_id
+      AND si.is_available = TRUE
+      AND si.is_blocked   = FALSE
+      AND (p_class_id = 0 OR si.class_id = p_class_id)
+    ORDER BY si.class_id, si.seat_number;
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- PROCEDURE: sp_get_seat_summary_for_flight
+-- ============================================================
+DROP PROCEDURE IF EXISTS sp_get_seat_summary_for_flight;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_get_seat_summary_for_flight(IN p_flight_id INT UNSIGNED)
+BEGIN
+    SELECT
+        fc.class_name,
+        COUNT(*)                                                  AS total_seats,
+        SUM(si.is_available = FALSE AND si.is_blocked = FALSE)    AS booked_seats,
+        SUM(si.is_available = TRUE  AND si.is_blocked = FALSE)    AS available_seats,
+        SUM(si.is_blocked   = TRUE)                               AS blocked_seats
+    FROM seat_inventory si
+    JOIN fare_classes fc ON si.class_id = fc.class_id
+    WHERE si.flight_id = p_flight_id
+    GROUP BY fc.class_id, fc.class_name;
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- 11. bookings
+-- ============================================================
+CREATE TABLE bookings (
+    booking_id            INT UNSIGNED  AUTO_INCREMENT,
+    pnr_number            CHAR(6)       NOT NULL,
+    user_id               INT UNSIGNED  NOT NULL,
+    flight_id             INT UNSIGNED  NOT NULL,
+    class_id              TINYINT UNSIGNED NOT NULL,
+    booking_status        ENUM('CONFIRMED','CANCELLED','WAITLISTED') NOT NULL DEFAULT 'CONFIRMED',
+    base_fare             DECIMAL(10,2) NOT NULL,
+    special_fare_discount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    coupon_discount       DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    seat_surcharge        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    baggage_charge        DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    meal_charge           DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    insurance_charge      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    gst_amount            DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+    total_fare            DECIMAL(10,2) NOT NULL,
+    cancelled_at          DATETIME      NULL,
+    refund_amount         DECIMAL(10,2) NULL,
+    created_at            DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    updated_at            DATETIME      DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (booking_id),
+    UNIQUE KEY uq_pnr (pnr_number),
+    CONSTRAINT fk_booking_user
+        FOREIGN KEY (user_id) REFERENCES users(user_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_booking_flight
+        FOREIGN KEY (flight_id) REFERENCES flights(flight_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_booking_class
+        FOREIGN KEY (class_id) REFERENCES fare_classes(class_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT chk_booking_base_fare  CHECK (base_fare  > 0),
+    CONSTRAINT chk_booking_total_fare CHECK (total_fare > 0),
+    CONSTRAINT chk_booking_charges    CHECK (
+        special_fare_discount >= 0 AND coupon_discount  >= 0 AND
+        seat_surcharge        >= 0 AND baggage_charge   >= 0 AND
+        meal_charge           >= 0 AND insurance_charge >= 0 AND
+        gst_amount            >= 0
+    ),
+    CONSTRAINT chk_refund CHECK (refund_amount IS NULL OR refund_amount <= total_fare),
+    INDEX idx_booking_pnr     (pnr_number),
+    INDEX idx_booking_user    (user_id),
+    INDEX idx_booking_flight  (flight_id),
+    INDEX idx_booking_status  (booking_status),
+    INDEX idx_booking_created (created_at)
+) ENGINE=InnoDB;
+
+DELIMITER $$
+
+-- FIX 1: Trigger no longer checks base_fare value — that check caused
+--         "Fare mismatch" because sp_create_booking inserts the adjusted
+--         fare (after multiplier + discount), not the raw flight base_fare.
+CREATE TRIGGER trg_bookings_before_insert
+BEFORE INSERT ON bookings
+FOR EACH ROW
+BEGIN
+    DECLARE v_pnr    CHAR(6);
+    DECLARE v_exists INT DEFAULT 1;
+    DECLARE v_attempt INT DEFAULT 0;
+    DECLARE v_status VARCHAR(20);
+
+    -- Generate unique PNR
+    WHILE v_exists > 0 AND v_attempt < 10 DO
+        SET v_pnr = CONCAT(
+            CHAR(FLOOR(65 + RAND() * 26)),
+            CHAR(FLOOR(65 + RAND() * 26)),
+            CHAR(FLOOR(48 + RAND() * 10)),
+            CHAR(FLOOR(48 + RAND() * 10)),
+            CHAR(FLOOR(65 + RAND() * 26)),
+            CHAR(FLOOR(65 + RAND() * 26))
+        );
+        SELECT COUNT(*) INTO v_exists FROM bookings WHERE pnr_number = v_pnr;
+        SET v_attempt = v_attempt + 1;
+    END WHILE;
+
+    IF v_exists > 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PNR generation failed after 10 attempts';
+    END IF;
+
+    SET NEW.pnr_number = v_pnr;
+
+    -- Flight must be bookable
+    SELECT status INTO v_status FROM flights WHERE flight_id = NEW.flight_id;
+    IF v_status NOT IN ('Scheduled','Boarding') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Flight is not available for booking';
+    END IF;
+
+    -- Total fare sanity check
+    IF NEW.total_fare <= 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Total fare must be greater than 0';
+    END IF;
+END$$
+
+-- Release seats when a booking is cancelled
+CREATE TRIGGER trg_bookings_after_update
+AFTER UPDATE ON bookings
+FOR EACH ROW
+BEGIN
+    IF NEW.booking_status = 'CANCELLED' AND OLD.booking_status != 'CANCELLED' THEN
+        UPDATE seat_inventory si
+        JOIN   booking_passengers bp ON si.seat_id = bp.seat_id
+        SET    si.is_available = TRUE
+        WHERE  bp.booking_id = NEW.booking_id;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- 12. booking_passengers
+-- ============================================================
+CREATE TABLE booking_passengers (
+    bp_id             INT UNSIGNED  AUTO_INCREMENT,
+    booking_id        INT UNSIGNED  NOT NULL,
+    passenger_name    VARCHAR(100)  NOT NULL,
+    age               TINYINT UNSIGNED NOT NULL,
+    passenger_type    ENUM('ADULT','CHILD','INFANT') NOT NULL DEFAULT 'ADULT',
+    category_id       TINYINT UNSIGNED NULL,
+    seat_id           INT UNSIGNED  NOT NULL,
+    meal_id           INT UNSIGNED  NULL,
+    insurance_plan_id INT UNSIGNED  NULL,
+    extra_baggage_kg  TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    id_proof_type     VARCHAR(50)   NULL,
+    id_proof_number   VARCHAR(50)   NULL,
+    created_at        DATETIME      DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (bp_id),
+    UNIQUE KEY uq_seat_per_booking (seat_id),
+    CONSTRAINT fk_bp_booking
+        FOREIGN KEY (booking_id) REFERENCES bookings(booking_id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_bp_seat
+        FOREIGN KEY (seat_id) REFERENCES seat_inventory(seat_id)
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_bp_category
+        FOREIGN KEY (category_id) REFERENCES passenger_categories(category_id)
+        ON DELETE RESTRICT,
+    CONSTRAINT chk_extra_baggage CHECK (extra_baggage_kg <= 40),
+    INDEX idx_bp_booking (booking_id),
+    INDEX idx_bp_seat    (seat_id)
+) ENGINE=InnoDB;
+
+DELIMITER $$
+
+CREATE TRIGGER trg_booking_passengers_before_insert
+BEFORE INSERT ON booking_passengers
+FOR EACH ROW
+BEGIN
+    DECLARE v_available      BOOLEAN;
+    DECLARE v_seat_flight    INT UNSIGNED;
+    DECLARE v_booking_flight INT UNSIGNED;
+
+    SET NEW.passenger_name = TRIM(NEW.passenger_name);
+
+    -- Lock the seat row to prevent double-booking
+    SELECT is_available, flight_id
+    INTO   v_available, v_seat_flight
+    FROM   seat_inventory
+    WHERE  seat_id = NEW.seat_id FOR UPDATE;
+
+    IF v_available = FALSE THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat is already booked or blocked';
+    END IF;
+
+    SELECT flight_id INTO v_booking_flight
+    FROM   bookings WHERE booking_id = NEW.booking_id;
+
+    IF v_seat_flight != v_booking_flight THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Seat does not belong to this flight';
+    END IF;
+END$$
+
+CREATE TRIGGER trg_booking_passengers_after_insert
+AFTER INSERT ON booking_passengers
+FOR EACH ROW
+BEGIN
+    DECLARE v_status VARCHAR(20);
+    SELECT booking_status INTO v_status FROM bookings WHERE booking_id = NEW.booking_id;
+    IF v_status = 'CONFIRMED' THEN
+        UPDATE seat_inventory SET is_available = FALSE WHERE seat_id = NEW.seat_id;
+    END IF;
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- PROCEDURE: sp_create_booking  (FULLY FIXED)
+--
+-- Fixes applied:
+--   1. Removed fare-mismatch check from trigger (done above).
+--   2. Added proper EXIT HANDLER with ROLLBACK.
+--   3. All validations happen BEFORE the transaction opens.
+--   4. Fare calculation: adjusted_base = raw_fare × multiplier,
+--      discount applied, surcharge added, then GST on total taxable.
+-- ============================================================
+DROP PROCEDURE IF EXISTS sp_create_booking;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_create_booking(
+    IN  p_user_id        INT UNSIGNED,
+    IN  p_flight_id      INT UNSIGNED,
+    IN  p_class_id       TINYINT UNSIGNED,
+    IN  p_seat_id        INT UNSIGNED,
+    IN  p_passenger_name VARCHAR(100),
+    IN  p_age            TINYINT UNSIGNED,
+    IN  p_passenger_type VARCHAR(10),
+    IN  p_category_id    TINYINT UNSIGNED,
+    OUT p_booking_id     INT,
+    OUT p_pnr            CHAR(6),
+    OUT p_total_fare     DECIMAL(10,2),
+    OUT p_message        VARCHAR(200)
+)
+proc_label: BEGIN
+    DECLARE v_raw_base_fare    DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_multiplier       DECIMAL(4,2)  DEFAULT 1;
+    DECLARE v_discount_pct     DECIMAL(5,2)  DEFAULT 0;
+    DECLARE v_seat_surcharge   DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_adjusted_base    DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_special_discount DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_taxable_amount   DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_gst              DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_total            DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_user_exists      INT           DEFAULT 0;
+    DECLARE v_flight_status    VARCHAR(20);
+    DECLARE v_seat_available   BOOLEAN;
+    DECLARE v_seat_class       TINYINT UNSIGNED;
+
+    -- FIX 2: Proper EXIT HANDLER that rolls back and sets outputs
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET p_booking_id = NULL;
+        SET p_pnr        = NULL;
+        SET p_total_fare = 0;
+        SET p_message    = 'Booking failed — transaction rolled back';
+    END;
+
+    -- ---- Pre-flight checks (outside transaction) ----------------
+
+    SELECT COUNT(*) INTO v_user_exists
+    FROM users WHERE user_id = p_user_id AND is_active = TRUE;
+    IF v_user_exists = 0 THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = 'User not found or inactive';
+        LEAVE proc_label;
+    END IF;
+
+    SELECT status INTO v_flight_status FROM flights WHERE flight_id = p_flight_id;
+    IF v_flight_status IS NULL THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = 'Flight not found';
+        LEAVE proc_label;
+    END IF;
+    IF v_flight_status NOT IN ('Scheduled','Boarding') THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = CONCAT('Flight cannot be booked — status: ', v_flight_status);
+        LEAVE proc_label;
+    END IF;
+
+    SELECT is_available, class_id
+    INTO   v_seat_available, v_seat_class
+    FROM   seat_inventory
+    WHERE  seat_id = p_seat_id AND flight_id = p_flight_id;
+
+    IF v_seat_available IS NULL THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = 'Seat not found for this flight';
+        LEAVE proc_label;
+    END IF;
+    IF v_seat_available = FALSE THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = 'Seat is already booked';
+        LEAVE proc_label;
+    END IF;
+    IF v_seat_class != p_class_id THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = 'Seat does not belong to the chosen fare class';
+        LEAVE proc_label;
+    END IF;
+
+    -- ---- Fare calculation ----------------------------------------
+
+    SELECT base_fare          INTO v_raw_base_fare FROM flights          WHERE flight_id  = p_flight_id;
+    SELECT price_multiplier   INTO v_multiplier    FROM fare_classes      WHERE class_id   = p_class_id;
+    SELECT COALESCE(discount_pct, 0)
+                              INTO v_discount_pct  FROM passenger_categories WHERE category_id = p_category_id;
+    SELECT st.surcharge       INTO v_seat_surcharge
+    FROM   seat_inventory si
+    JOIN   seat_types st ON si.type_id = st.type_id
+    WHERE  si.seat_id = p_seat_id;
+
+    -- adjusted base = raw × multiplier
+    SET v_adjusted_base    = ROUND(v_raw_base_fare * v_multiplier, 2);
+    -- category discount on adjusted base
+    SET v_special_discount = ROUND(v_adjusted_base * v_discount_pct / 100, 2);
+    -- taxable = adjusted - discount + seat surcharge
+    SET v_taxable_amount   = v_adjusted_base - v_special_discount + v_seat_surcharge;
+    -- GST: 12% Business, 5% Economy
+    SET v_gst = IF(p_class_id = 2,
+                   ROUND(v_taxable_amount * 0.12, 2),
+                   ROUND(v_taxable_amount * 0.05, 2));
+    SET v_total = v_taxable_amount + v_gst;
+
+    -- ---- Persist booking -----------------------------------------
+
+    START TRANSACTION;
+
+    INSERT INTO bookings (
+        user_id, flight_id, class_id,
+        base_fare, special_fare_discount, seat_surcharge, gst_amount, total_fare,
+        booking_status
+    ) VALUES (
+        p_user_id, p_flight_id, p_class_id,
+        v_adjusted_base, v_special_discount, v_seat_surcharge, v_gst, v_total,
+        'CONFIRMED'
+    );
+
+    SET p_booking_id = LAST_INSERT_ID();
+    SELECT pnr_number INTO p_pnr FROM bookings WHERE booking_id = p_booking_id;
+
+    INSERT INTO booking_passengers (
+        booking_id, passenger_name, age, passenger_type, category_id, seat_id
+    ) VALUES (
+        p_booking_id, TRIM(p_passenger_name), p_age, p_passenger_type, p_category_id, p_seat_id
+    );
+
+    COMMIT;
+
+    SET p_total_fare = v_total;
+    SET p_message    = CONCAT('Booking confirmed. PNR: ', p_pnr, ' | Total: ₹', v_total);
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- PROCEDURE: sp_cancel_booking  (FULLY FIXED)
+--
+-- FIX 3: Replaced invalid "LEAVE BEGIN" with proper labeled block.
+--         Added time-based refund tiers (matches original spec).
+-- ============================================================
+DROP PROCEDURE IF EXISTS sp_cancel_booking;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_cancel_booking(
+    IN  p_booking_id INT UNSIGNED,
+    IN  p_user_id    INT UNSIGNED,
+    OUT p_refund     DECIMAL(10,2),
+    OUT p_message    VARCHAR(200)
+)
+proc_label: BEGIN
+    DECLARE v_status     VARCHAR(20);
+    DECLARE v_total      DECIMAL(10,2);
+    DECLARE v_dep_time   DATETIME;
+    DECLARE v_hrs        INT;
+    DECLARE v_refund_pct DECIMAL(5,2) DEFAULT 0;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET p_refund  = 0;
+        SET p_message = 'Cancellation failed — rolled back';
+    END;
+
+    -- Fetch booking + flight departure
+    SELECT b.booking_status, b.total_fare, f.departure_time
+    INTO   v_status, v_total, v_dep_time
+    FROM   bookings b
+    JOIN   flights  f ON b.flight_id = f.flight_id
+    WHERE  b.booking_id = p_booking_id AND b.user_id = p_user_id;
+
+    IF v_status IS NULL THEN
+        SET p_refund  = 0;
+        SET p_message = 'Booking not found for this user';
+        LEAVE proc_label;
+    END IF;
+
+    IF v_status NOT IN ('CONFIRMED','WAITLISTED') THEN
+        SET p_refund  = 0;
+        SET p_message = CONCAT('Booking is already ', v_status);
+        LEAVE proc_label;
+    END IF;
+
+    SET v_hrs = TIMESTAMPDIFF(HOUR, NOW(), v_dep_time);
+
+    IF v_hrs < 0 THEN
+        SET p_refund  = 0;
+        SET p_message = 'Cannot cancel — flight has already departed';
+        LEAVE proc_label;
+    ELSEIF v_hrs >= 72 THEN
+        SET v_refund_pct = 75.00;
+    ELSEIF v_hrs >= 24 THEN
+        SET v_refund_pct = 50.00;
+    ELSE
+        SET v_refund_pct = 0.00;
+    END IF;
+
+    SET p_refund = ROUND(v_total * v_refund_pct / 100, 2);
+
+    START TRANSACTION;
+
+    UPDATE bookings
+    SET    booking_status = 'CANCELLED',
+           cancelled_at   = NOW(),
+           refund_amount  = p_refund
+    WHERE  booking_id = p_booking_id;
+
+    COMMIT;
+
+    SET p_message = CONCAT('Cancelled. Refund: ₹', p_refund,
+                            ' (', v_refund_pct, '% of ₹', v_total, ')');
+END$$
+
+DELIMITER ;
+
+-- ============================================================
+-- PROCEDURE: sp_get_booking_details
+-- ============================================================
+DROP PROCEDURE IF EXISTS sp_get_booking_details;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_get_booking_details(IN p_pnr CHAR(6))
+BEGIN
+    -- Booking summary
+    SELECT
+        b.booking_id, b.pnr_number, b.booking_status,
+        u.full_name  AS passenger,
+        al.airline_name, f.flight_number,
+        orig.city    AS from_city, orig.iata_code AS from_iata,
+        dest.city    AS to_city,   dest.iata_code AS to_iata,
+        f.departure_time, f.arrival_time,
+        fc.class_name,
+        b.base_fare, b.special_fare_discount, b.seat_surcharge,
+        b.gst_amount, b.total_fare, b.refund_amount,
+        b.created_at AS booked_on
+    FROM bookings     b
+    JOIN users        u   ON b.user_id              = u.user_id
+    JOIN flights      f   ON b.flight_id             = f.flight_id
+    JOIN fare_classes fc  ON b.class_id              = fc.class_id
+    JOIN routes       r   ON f.route_id              = r.route_id
+    JOIN airports     orig ON r.origin_airport_id    = orig.airport_id
+    JOIN airports     dest ON r.destination_airport_id = dest.airport_id
+    JOIN aircrafts    ac  ON f.aircraft_id           = ac.aircraft_id
+    JOIN airlines     al  ON ac.airline_id           = al.airline_id
+    WHERE b.pnr_number = UPPER(TRIM(p_pnr));
+
+    -- Passenger details
+    SELECT
+        bp.passenger_name, bp.age, bp.passenger_type,
+        pc.category_name,
+        si.seat_number,
+        st.type_name AS seat_type,
+        bp.extra_baggage_kg,
+        bp.id_proof_type, bp.id_proof_number
+    FROM booking_passengers    bp
+    JOIN bookings               b  ON bp.booking_id = b.booking_id
+    JOIN seat_inventory         si ON bp.seat_id    = si.seat_id
+    JOIN seat_types             st ON si.type_id    = st.type_id
+    LEFT JOIN passenger_categories pc ON bp.category_id = pc.category_id
+    WHERE b.pnr_number = UPPER(TRIM(p_pnr));
+END$$
+
+DELIMITER ;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+-- ============================================================
+--  QUICK TEST — Run these 4 blocks after the schema loads
+-- ============================================================
+
+-- STEP 1: Generate seats for flight 1
+-- CALL sp_generate_seats_for_flight(1, @s, @m);
+-- SELECT @s AS seats_added, @m AS message;
+
+-- STEP 2: See available Economy seats
+-- CALL sp_get_available_seats(1, 1);
+
+-- STEP 3: Book a ticket (use a seat_id returned from STEP 2)
+-- SET @bid=NULL; SET @pnr=NULL; SET @fare=NULL; SET @msg=NULL;
+-- CALL sp_create_booking(1,1,1,<seat_id>,'Rahul Sharma',21,'ADULT',1,
+--                        @bid,@pnr,@fare,@msg);
+-- SELECT @bid AS booking_id, @pnr AS pnr, @fare AS total_fare, @msg AS message;
+
+-- STEP 4: Retrieve booking
+-- CALL sp_get_booking_details(@pnr);
+
+USE FlightReservation_DbMs;
+SHOW TABLES;
+
+USE FlightReservation_DbMs;
+
+DROP PROCEDURE IF EXISTS sp_generate_seats_for_flight;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_generate_seats_for_flight(
+    IN  p_flight_id   INT UNSIGNED,
+    OUT p_seats_added INT,
+    OUT p_message     VARCHAR(200)
+)
+proc_label: BEGIN
+    DECLARE v_total_seats   SMALLINT DEFAULT 0;
+    DECLARE v_business_rows SMALLINT DEFAULT 0;
+    DECLARE v_economy_rows  SMALLINT DEFAULT 0;
+    DECLARE v_current_row   SMALLINT DEFAULT 1;
+    DECLARE v_inserted      INT      DEFAULT 0;
+    DECLARE v_flight_exists INT      DEFAULT 0;
+    DECLARE v_already_done  INT      DEFAULT 0;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET p_seats_added = 0;
+        SET p_message = 'Seat generation failed — rolled back';
+    END;
+
+    SELECT COUNT(*) INTO v_flight_exists
+    FROM flights WHERE flight_id = p_flight_id AND status != 'Cancelled';
+
+    IF v_flight_exists = 0 THEN
+        SET p_seats_added = 0;
+        SET p_message = 'Flight not found or is cancelled';
+        LEAVE proc_label;
+    END IF;
+
+    SELECT COUNT(*) INTO v_already_done
+    FROM seat_inventory WHERE flight_id = p_flight_id;
+
+    IF v_already_done > 0 THEN
+        SET p_seats_added = 0;
+        SET p_message = 'Seats already generated for this flight';
+        LEAVE proc_label;
+    END IF;
+
+    SELECT ac.total_seats INTO v_total_seats
+    FROM flights f
+    JOIN aircrafts ac ON f.aircraft_id = ac.aircraft_id
+    WHERE f.flight_id = p_flight_id;
+
+    SET v_business_rows = CEIL((v_total_seats * 0.20) / 3);
+    SET v_economy_rows  = CEIL((v_total_seats - (v_business_rows * 3)) / 6);
+
+    START TRANSACTION;
+
+    SET v_current_row = 1;
+    WHILE v_current_row <= v_business_rows DO
+        INSERT INTO seat_inventory (flight_id, seat_number, type_id, class_id) VALUES
+            (p_flight_id, CONCAT(v_current_row,'A'), 1, 2),
+            (p_flight_id, CONCAT(v_current_row,'B'), 2, 2),
+            (p_flight_id, CONCAT(v_current_row,'C'), 3, 2);
+        SET v_inserted    = v_inserted + 3;
+        SET v_current_row = v_current_row + 1;
+    END WHILE;
+
+    SET v_current_row = v_business_rows + 1;
+    WHILE v_current_row <= (v_business_rows + v_economy_rows) DO
+        INSERT INTO seat_inventory (flight_id, seat_number, type_id, class_id) VALUES
+            (p_flight_id, CONCAT(v_current_row,'A'), 1, 1),
+            (p_flight_id, CONCAT(v_current_row,'B'), 2, 1),
+            (p_flight_id, CONCAT(v_current_row,'C'), 3, 1),
+            (p_flight_id, CONCAT(v_current_row,'D'), 3, 1),
+            (p_flight_id, CONCAT(v_current_row,'E'), 2, 1),
+            (p_flight_id, CONCAT(v_current_row,'F'), 1, 1);
+        SET v_inserted    = v_inserted + 6;
+        SET v_current_row = v_current_row + 1;
+    END WHILE;
+
+    COMMIT;
+
+    SET p_seats_added = v_inserted;
+    SET p_message = CONCAT('Generated ', v_inserted, ' seats for flight_id ', p_flight_id);
+END$$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_get_available_seats;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_get_available_seats(
+    IN p_flight_id INT UNSIGNED,
+    IN p_class_id  TINYINT UNSIGNED
+)
+BEGIN
+    SELECT si.seat_id, si.seat_number, fc.class_name,
+           st.type_name, st.surcharge, si.is_available
+    FROM seat_inventory si
+    JOIN fare_classes fc ON si.class_id = fc.class_id
+    JOIN seat_types   st ON si.type_id  = st.type_id
+    WHERE si.flight_id    = p_flight_id
+      AND si.is_available = TRUE
+      AND si.is_blocked   = FALSE
+      AND (p_class_id = 0 OR si.class_id = p_class_id)
+    ORDER BY si.class_id, si.seat_number
+    LIMIT 20;
+END$$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_create_booking;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_create_booking(
+    IN  p_user_id        INT UNSIGNED,
+    IN  p_flight_id      INT UNSIGNED,
+    IN  p_class_id       TINYINT UNSIGNED,
+    IN  p_seat_id        INT UNSIGNED,
+    IN  p_passenger_name VARCHAR(100),
+    IN  p_age            TINYINT UNSIGNED,
+    IN  p_passenger_type VARCHAR(10),
+    IN  p_category_id    TINYINT UNSIGNED,
+    OUT p_booking_id     INT,
+    OUT p_pnr            CHAR(6),
+    OUT p_total_fare     DECIMAL(10,2),
+    OUT p_message        VARCHAR(200)
+)
+proc_label: BEGIN
+    DECLARE v_raw_base_fare    DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_multiplier       DECIMAL(4,2)  DEFAULT 1;
+    DECLARE v_discount_pct     DECIMAL(5,2)  DEFAULT 0;
+    DECLARE v_seat_surcharge   DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_adjusted_base    DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_special_discount DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_taxable_amount   DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_gst              DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_total            DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_user_exists      INT           DEFAULT 0;
+    DECLARE v_flight_status    VARCHAR(20);
+    DECLARE v_seat_available   BOOLEAN;
+    DECLARE v_seat_class       TINYINT UNSIGNED;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET p_booking_id = NULL;
+        SET p_pnr        = NULL;
+        SET p_total_fare = 0;
+        SET p_message    = 'Booking failed — transaction rolled back';
+    END;
+
+    SELECT COUNT(*) INTO v_user_exists
+    FROM users WHERE user_id = p_user_id AND is_active = TRUE;
+    IF v_user_exists = 0 THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = 'User not found or inactive';
+        LEAVE proc_label;
+    END IF;
+
+    SELECT status INTO v_flight_status FROM flights WHERE flight_id = p_flight_id;
+    IF v_flight_status IS NULL THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = 'Flight not found';
+        LEAVE proc_label;
+    END IF;
+    IF v_flight_status NOT IN ('Scheduled','Boarding') THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = CONCAT('Flight cannot be booked — status: ', v_flight_status);
+        LEAVE proc_label;
+    END IF;
+
+    SELECT is_available, class_id
+    INTO   v_seat_available, v_seat_class
+    FROM   seat_inventory
+    WHERE  seat_id = p_seat_id AND flight_id = p_flight_id;
+
+    IF v_seat_available IS NULL THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = 'Seat not found for this flight';
+        LEAVE proc_label;
+    END IF;
+    IF v_seat_available = FALSE THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = 'Seat is already booked';
+        LEAVE proc_label;
+    END IF;
+    IF v_seat_class != p_class_id THEN
+        SET p_booking_id = NULL; SET p_pnr = NULL; SET p_total_fare = 0;
+        SET p_message = 'Seat does not belong to the chosen fare class';
+        LEAVE proc_label;
+    END IF;
+
+    SELECT base_fare        INTO v_raw_base_fare FROM flights             WHERE flight_id   = p_flight_id;
+    SELECT price_multiplier INTO v_multiplier    FROM fare_classes        WHERE class_id    = p_class_id;
+    SELECT COALESCE(discount_pct,0) INTO v_discount_pct FROM passenger_categories WHERE category_id = p_category_id;
+    SELECT st.surcharge     INTO v_seat_surcharge
+    FROM   seat_inventory si
+    JOIN   seat_types st ON si.type_id = st.type_id
+    WHERE  si.seat_id = p_seat_id;
+
+    SET v_adjusted_base    = ROUND(v_raw_base_fare * v_multiplier, 2);
+    SET v_special_discount = ROUND(v_adjusted_base * v_discount_pct / 100, 2);
+    SET v_taxable_amount   = v_adjusted_base - v_special_discount + v_seat_surcharge;
+    SET v_gst = IF(p_class_id = 2,
+                   ROUND(v_taxable_amount * 0.12, 2),
+                   ROUND(v_taxable_amount * 0.05, 2));
+    SET v_total = v_taxable_amount + v_gst;
+
+    START TRANSACTION;
+
+    INSERT INTO bookings (
+        user_id, flight_id, class_id,
+        base_fare, special_fare_discount, seat_surcharge, gst_amount, total_fare,
+        booking_status
+    ) VALUES (
+        p_user_id, p_flight_id, p_class_id,
+        v_adjusted_base, v_special_discount, v_seat_surcharge, v_gst, v_total,
+        'CONFIRMED'
+    );
+
+    SET p_booking_id = LAST_INSERT_ID();
+    SELECT pnr_number INTO p_pnr FROM bookings WHERE booking_id = p_booking_id;
+
+    INSERT INTO booking_passengers (
+        booking_id, passenger_name, age, passenger_type, category_id, seat_id
+    ) VALUES (
+        p_booking_id, TRIM(p_passenger_name), p_age, p_passenger_type, p_category_id, p_seat_id
+    );
+
+    COMMIT;
+
+    SET p_total_fare = v_total;
+    SET p_message    = CONCAT('Booking confirmed! PNR: ', p_pnr, ' | Total: Rs.', v_total);
+END$$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_cancel_booking;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_cancel_booking(
+    IN  p_booking_id INT UNSIGNED,
+    IN  p_user_id    INT UNSIGNED,
+    OUT p_refund     DECIMAL(10,2),
+    OUT p_message    VARCHAR(200)
+)
+proc_label: BEGIN
+    DECLARE v_status     VARCHAR(20);
+    DECLARE v_total      DECIMAL(10,2);
+    DECLARE v_dep_time   DATETIME;
+    DECLARE v_hrs        INT;
+    DECLARE v_refund_pct DECIMAL(5,2) DEFAULT 0;
+
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        SET p_refund  = 0;
+        SET p_message = 'Cancellation failed — rolled back';
+    END;
+
+    SELECT b.booking_status, b.total_fare, f.departure_time
+    INTO   v_status, v_total, v_dep_time
+    FROM   bookings b
+    JOIN   flights  f ON b.flight_id = f.flight_id
+    WHERE  b.booking_id = p_booking_id AND b.user_id = p_user_id;
+
+    IF v_status IS NULL THEN
+        SET p_refund = 0;
+        SET p_message = 'Booking not found for this user';
+        LEAVE proc_label;
+    END IF;
+
+    IF v_status NOT IN ('CONFIRMED','WAITLISTED') THEN
+        SET p_refund = 0;
+        SET p_message = CONCAT('Booking is already ', v_status);
+        LEAVE proc_label;
+    END IF;
+
+    SET v_hrs = TIMESTAMPDIFF(HOUR, NOW(), v_dep_time);
+
+    IF v_hrs < 0 THEN
+        SET p_refund = 0;
+        SET p_message = 'Cannot cancel — flight already departed';
+        LEAVE proc_label;
+    ELSEIF v_hrs >= 72 THEN
+        SET v_refund_pct = 75.00;
+    ELSEIF v_hrs >= 24 THEN
+        SET v_refund_pct = 50.00;
+    ELSE
+        SET v_refund_pct = 0.00;
+    END IF;
+
+    SET p_refund = ROUND(v_total * v_refund_pct / 100, 2);
+
+    START TRANSACTION;
+    UPDATE bookings
+    SET    booking_status = 'CANCELLED',
+           cancelled_at   = NOW(),
+           refund_amount  = p_refund
+    WHERE  booking_id = p_booking_id;
+    COMMIT;
+
+    SET p_message = CONCAT('Cancelled. Refund: Rs.', p_refund,
+                           ' (', v_refund_pct, '% of Rs.', v_total, ')');
+END$$
+
+DELIMITER ;
+
+DROP PROCEDURE IF EXISTS sp_get_booking_details;
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_get_booking_details(IN p_pnr CHAR(6))
+BEGIN
+    SELECT
+        b.booking_id, b.pnr_number, b.booking_status,
+        u.full_name AS passenger,
+        al.airline_name, f.flight_number,
+        orig.city AS from_city, orig.iata_code AS from_iata,
+        dest.city AS to_city,   dest.iata_code AS to_iata,
+        f.departure_time, f.arrival_time,
+        fc.class_name,
+        b.base_fare, b.special_fare_discount,
+        b.seat_surcharge, b.gst_amount, b.total_fare,
+        b.created_at AS booked_on
+    FROM bookings     b
+    JOIN users        u    ON b.user_id                  = u.user_id
+    JOIN flights      f    ON b.flight_id                = f.flight_id
+    JOIN fare_classes fc   ON b.class_id                 = fc.class_id
+    JOIN routes       r    ON f.route_id                 = r.route_id
+    JOIN airports     orig ON r.origin_airport_id        = orig.airport_id
+    JOIN airports     dest ON r.destination_airport_id   = dest.airport_id
+    JOIN aircrafts    ac   ON f.aircraft_id              = ac.aircraft_id
+    JOIN airlines     al   ON ac.airline_id              = al.airline_id
+    WHERE b.pnr_number = UPPER(TRIM(p_pnr));
+
+    SELECT
+        bp.passenger_name, bp.age, bp.passenger_type,
+        pc.category_name,
+        si.seat_number,
+        st.type_name AS seat_type,
+        bp.extra_baggage_kg
+    FROM booking_passengers    bp
+    JOIN bookings               b  ON bp.booking_id = b.booking_id
+    JOIN seat_inventory         si ON bp.seat_id    = si.seat_id
+    JOIN seat_types             st ON si.type_id    = st.type_id
+    LEFT JOIN passenger_categories pc ON bp.category_id = pc.category_id
+    WHERE b.pnr_number = UPPER(TRIM(p_pnr));
+END$$
+
+DELIMITER ;
+
+CREATE TABLE routes (
+    route_id               INT UNSIGNED AUTO_INCREMENT,
+    airline_id             INT UNSIGNED NOT NULL,
+    origin_airport_id      INT UNSIGNED NOT NULL,
+    destination_airport_id INT UNSIGNED NOT NULL,
+    is_active              BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at             DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    updated_at             DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (route_id),
+    UNIQUE KEY uq_airline_route (airline_id, origin_airport_id, destination_airport_id),
+    CONSTRAINT fk_route_airline
+        FOREIGN KEY (airline_id) REFERENCES airlines(airline_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_route_origin
+        FOREIGN KEY (origin_airport_id) REFERENCES airports(airport_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT fk_route_destination
+        FOREIGN KEY (destination_airport_id) REFERENCES airports(airport_id)
+        ON UPDATE CASCADE ON DELETE RESTRICT
+) ENGINE=InnoDB;
+
+INSERT INTO routes (airline_id, origin_airport_id, destination_airport_id) VALUES
+(1,1,2),(1,2,1),(1,1,3),(1,3,1),(1,1,4),(1,2,3),
+(2,1,2),(2,2,1),(2,1,6),(2,6,1);
+
+UPDATE flights SET route_id = 1  WHERE flight_number = '6E101';
+UPDATE flights SET route_id = 2  WHERE flight_number = '6E102';
+UPDATE flights SET route_id = 3  WHERE flight_number = '6E103';
+UPDATE flights SET route_id = 4  WHERE flight_number = '6E104';
+UPDATE flights SET route_id = 7  WHERE flight_number = 'AI201';
+UPDATE flights SET route_id = 8  WHERE flight_number = 'AI202';
+UPDATE flights SET route_id = 9  WHERE flight_number = 'AI203';
+UPDATE flights SET route_id = 10 WHERE flight_number = 'AI204';
+
+INSERT INTO routes (airline_id, origin_airport_id, destination_airport_id, distance_km, typical_duration_min)
+VALUES (1, 4, 1, 1250, 120);
+
+SET @new_route_id = LAST_INSERT_ID();
+SELECT @new_route_id;
+
+INSERT INTO flights (flight_number, route_id, aircraft_id, departure_time, arrival_time, base_fare, status)
+VALUES (
+    '6E501',
+    @new_route_id,
+    1,
+    DATE_ADD(NOW(), INTERVAL 3 DAY),
+    DATE_ADD(NOW(), INTERVAL 3 DAY) + INTERVAL 2 HOUR,
+    4200.00,
+    'Scheduled'
+);
+
+SET @fid = LAST_INSERT_ID();
+SELECT @fid;
+
+SET @cnt = 0; SET @msg = '';
+CALL sp_generate_seats_for_flight(@fid, @cnt, @msg);
+SELECT @cnt AS seats_added, @msg AS message;
+
+INSERT INTO routes (airline_id, origin_airport_id, destination_airport_id, distance_km, typical_duration_min)
+VALUES (1, 2, 3, 842, 90);
+
+SET @route_bom_blr = LAST_INSERT_ID();
+SELECT @route_bom_blr;
+
+INSERT INTO flights (flight_number, route_id, aircraft_id, departure_time, arrival_time, base_fare, status)
+VALUES (
+    '6E601',
+    @route_bom_blr,
+    2,
+    DATE_ADD(NOW(), INTERVAL 4 DAY),
+    DATE_ADD(NOW(), INTERVAL 4 DAY) + INTERVAL 90 MINUTE,
+    3000.00,
+    'Scheduled'
+);
+
+SET @fid3 = LAST_INSERT_ID();
+SELECT @fid3;
+
+SET @cnt = 0; SET @msg = '';
+CALL sp_generate_seats_for_flight(@fid3, @cnt, @msg);
+SELECT @cnt AS seats_added, @msg AS message;
